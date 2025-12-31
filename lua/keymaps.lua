@@ -1,70 +1,242 @@
+-- ============================================================
 -- Safe “command” keymaps only (no Vim motion overrides)
+-- ============================================================
 
-vim.keymap.set("n", "<leader>w", ":w<CR>", { silent = true })
-vim.keymap.set("n", "<leader>q", ":q<CR>", { silent = true })
+---------------------------------------------------------------
+-- Core file / editor commands
+---------------------------------------------------------------
+vim.keymap.set("n", "<leader>w", ":w<CR>", { silent = true, desc = "Save" })
+vim.keymap.set("n", "<leader>q", ":q<CR>", { silent = true, desc = "Quit" })
 
+-- Toggle auto-save
+vim.g.autosave_enabled = true  -- Enabled by default
+vim.keymap.set("n", "<leader>ta", function()
+  vim.g.autosave_enabled = not vim.g.autosave_enabled
+  if vim.g.autosave_enabled then
+    vim.notify("Auto-save enabled", vim.log.levels.INFO)
+  else
+    vim.notify("Auto-save disabled", vim.log.levels.WARN)
+  end
+end, { desc = "Toggle auto-save" })
+
+---------------------------------------------------------------
 -- File tree
-vim.keymap.set("n", "<leader>e", ":NvimTreeToggle<CR>", { silent = true })
+---------------------------------------------------------------
+vim.keymap.set("n", "<leader>e", ":NvimTreeToggle<CR>", { silent = true, desc = "File Tree" })
 
+---------------------------------------------------------------
 -- Telescope
+---------------------------------------------------------------
 vim.keymap.set("n", "<leader>ff", function()
   require("telescope.builtin").find_files()
-end, { silent = true })
+end, { silent = true, desc = "Find Files" })
 
 vim.keymap.set("n", "<leader>fg", function()
   require("telescope.builtin").live_grep()
-end, { silent = true })
+end, { silent = true, desc = "Live Grep" })
 
 vim.keymap.set("n", "<leader>fb", function()
   require("telescope.builtin").buffers()
-end, { silent = true })
+end, { silent = true, desc = "Buffers" })
 
--- Neogit (Git UI)
-vim.keymap.set("n", "<leader>gs", ":Neogit<CR>", { silent = true })
+---------------------------------------------------------------
+-- Git (Neogit)
+---------------------------------------------------------------
+vim.keymap.set("n", "<leader>gs", ":Neogit<CR>", { silent = true, desc = "Neogit Status" })
 
--- Terminal Split Horizontal Bottom
+---------------------------------------------------------------
+-- Terminal
+---------------------------------------------------------------
 vim.keymap.set("n", "<leader>t", function()
   vim.cmd("botright 12split | terminal")
-end, { desc = "Terminal (bottom split)" })
+end, { desc = "Terminal (Bottom Split)" })
 
--- Easier window navigation
-vim.keymap.set("n", "<C-h>", "<C-w>h")
-vim.keymap.set("n", "<C-j>", "<C-w>j")
-vim.keymap.set("n", "<C-k>", "<C-w>k")
-vim.keymap.set("n", "<C-l>", "<C-w>l")
+---------------------------------------------------------------
+-- Window navigation (not motions)
+---------------------------------------------------------------
+vim.keymap.set("n", "<C-h>", "<C-w>h", { desc = "Window Left" })
+vim.keymap.set("n", "<C-j>", "<C-w>j", { desc = "Window Down" })
+vim.keymap.set("n", "<C-k>", "<C-w>k", { desc = "Window Up" })
+vim.keymap.set("n", "<C-l>", "<C-w>l", { desc = "Window Right" })
 
+---------------------------------------------------------------
+-- Run Python file in venv
+---------------------------------------------------------------
 vim.keymap.set("n", "<leader>rp", function()
   vim.cmd("botright split | terminal ./.venv/bin/python " .. vim.fn.expand("%"))
-end, { desc = "Run Python file (.venv)" })
+end, { desc = "Run Python (.venv)" })
 
--- Debugger (nvim-dap) - no function keys
-local dap_ok, dap = pcall(require, "dap")
-if dap_ok then
-  -- Start/Continue
-  vim.keymap.set("n", "<leader>dc", dap.continue, { desc = "Debug: Continue" })
+---------------------------------------------------------------
+-- Debugger (nvim-dap) — lazy-safe
+---------------------------------------------------------------
+vim.keymap.set("n", "<leader>dc", function()
+  require("dap").continue()
+end, { desc = "Debug: Continue" })
 
-  -- Step controls
-  vim.keymap.set("n", "<leader>dn", dap.step_over, { desc = "Debug: Step Over" })
-  vim.keymap.set("n", "<leader>di", dap.step_into, { desc = "Debug: Step Into" })
-  vim.keymap.set("n", "<leader>do", dap.step_out, { desc = "Debug: Step Out" })
+vim.keymap.set("n", "<leader>dn", function()
+  require("dap").step_over()
+end, { desc = "Debug: Step Over" })
 
-  -- Breakpoints
-  vim.keymap.set("n", "<leader>db", dap.toggle_breakpoint, { desc = "Debug: Toggle Breakpoint" })
-  vim.keymap.set("n", "<leader>dB", function()
-    dap.set_breakpoint(vim.fn.input("Breakpoint condition: "))
-  end, { desc = "Debug: Conditional Breakpoint" })
+vim.keymap.set("n", "<leader>di", function()
+  require("dap").step_into()
+end, { desc = "Debug: Step Into" })
 
-  -- REPL / utilities
-  vim.keymap.set("n", "<leader>dr", dap.repl.open, { desc = "Debug: REPL" })
-  vim.keymap.set("n", "<leader>dl", dap.run_last, { desc = "Debug: Run Last" })
-  vim.keymap.set("n", "<leader>dq", dap.terminate, { desc = "Debug: Terminate" })
-end
+vim.keymap.set("n", "<leader>do", function()
+  require("dap").step_out()
+end, { desc = "Debug: Step Out" })
 
-local dapui_ok, dapui = pcall(require, "dapui")
-if dapui_ok then
-  vim.keymap.set("n", "<leader>du", dapui.toggle, { desc = "Debug: Toggle UI" })
-end
+vim.keymap.set("n", "<leader>db", function()
+  require("dap").toggle_breakpoint()
+end, { desc = "Debug: Toggle Breakpoint" })
 
+vim.keymap.set("n", "<leader>dB", function()
+  require("dap").set_breakpoint(vim.fn.input("Breakpoint condition: "))
+end, { desc = "Debug: Conditional Breakpoint" })
+
+vim.keymap.set("n", "<leader>dr", function()
+  require("dap").repl.open()
+end, { desc = "Debug: REPL" })
+
+vim.keymap.set("n", "<leader>dl", function()
+  require("dap").run_last()
+end, { desc = "Debug: Run Last" })
+
+vim.keymap.set("n", "<leader>dq", function()
+  require("dap").terminate()
+end, { desc = "Debug: Terminate" })
+
+vim.keymap.set("n", "<leader>du", function()
+  require("dapui").toggle()
+end, { desc = "Debug: Toggle UI" })
+
+---------------------------------------------------------------
+-- Cheat sheet
+---------------------------------------------------------------
 vim.keymap.set("n", "<leader>?", function()
   require("cheatsheet").open()
-end, { desc = "Cheat sheet" })
+end, { desc = "Cheat Sheet" })
+
+---------------------------------------------------------------
+-- Previews
+---------------------------------------------------------------
+vim.keymap.set(
+  "n",
+  "<leader>mp",
+  "<cmd>MarkdownPreviewToggle<CR>",
+  { desc = "Markdown Preview Toggle", silent = true }
+)
+
+vim.keymap.set(
+  "n",
+  "<leader>ms",
+  "<cmd>MarkdownPreviewStop<CR>",
+  { desc = "Markdown Preview Stop", silent = true }
+)
+
+vim.keymap.set(
+  "n",
+  "<leader>cv",
+  "<cmd>CsvViewToggle<CR>",
+  { desc = "CSV Table View Toggle", silent = true }
+)
+
+vim.keymap.set("n", "<leader>df", function()
+  require("debug.fastapi_aws").pick_and_debug()
+end, { desc = "Debug FastAPI: pick AWS profile -> ae -> start -> debugpy -> attach" })
+
+---------------------------------------------------------------
+-- Zen mode
+---------------------------------------------------------------
+vim.keymap.set("n", "<leader>z", "<cmd>ZenMode<CR>", { desc = "Focus mode (Zen)" })
+
+---------------------------------------------------------------
+-- Avante AI (comprehensive keymaps)
+---------------------------------------------------------------
+-- Sidebar management
+vim.keymap.set("n", "<leader>aa", "<cmd>AvanteAsk<CR>", { desc = "Avante: Ask AI" })
+vim.keymap.set("n", "<leader>at", "<cmd>AvanteToggle<CR>", { desc = "Avante: Toggle Sidebar" })
+vim.keymap.set("n", "<leader>ar", "<cmd>AvanteRefresh<CR>", { desc = "Avante: Refresh" })
+vim.keymap.set("n", "<leader>af", "<cmd>AvanteFocus<CR>", { desc = "Avante: Focus Sidebar" })
+
+-- Chat and interactions
+vim.keymap.set("n", "<leader>ac", "<cmd>AvanteChat<CR>", { desc = "Avante: Open Chat" })
+vim.keymap.set("v", "<leader>aa", ":<C-u>AvanteAsk<CR>", { desc = "Avante: Ask about selection" })
+
+-- File management
+vim.keymap.set("n", "<leader>aB", "<cmd>AvanteBuild<CR>", { desc = "Avante: Add all buffers to context" })
+
+-- Settings
+vim.keymap.set("n", "<leader>as", "<cmd>AvanteShowRepoMap<CR>", { desc = "Avante: Show repo map" })
+vim.keymap.set("n", "<leader>aS", "<cmd>AvanteClear<CR>", { desc = "Avante: Clear/Stop request" })
+
+---------------------------------------------------------------
+-- Move lines up/down (Space+j/k)
+---------------------------------------------------------------
+-- Normal mode: move current line
+vim.keymap.set("n", "<leader>k", function()
+  local line = vim.fn.line(".")
+  if line > 1 then
+    vim.cmd("move " .. (line - 2))
+    vim.cmd("normal! ==")
+  end
+end, { silent = true, desc = "Move line up" })
+
+vim.keymap.set("n", "<leader>j", function()
+  local line = vim.fn.line(".")
+  local lastline = vim.fn.line("$")
+  if line < lastline then
+    vim.cmd("move " .. (line + 1))
+    vim.cmd("normal! ==")
+  end
+end, { silent = true, desc = "Move line down" })
+
+-- Visual mode: move selected lines
+vim.keymap.set("v", "<leader>k", function()
+  vim.cmd("'<,'>move '<-2")
+  vim.cmd("normal! gv=gv")
+end, { silent = true, desc = "Move selection up" })
+
+vim.keymap.set("v", "<leader>j", function()
+  vim.cmd("'<,'>move '>+1")
+  vim.cmd("normal! gv=gv")
+end, { silent = true, desc = "Move selection down" })
+
+---------------------------------------------------------------
+-- Code Folding (VSCode-style collapse)
+---------------------------------------------------------------
+-- Collapse/Expand all (VSCode-like) - using arrow keys
+vim.keymap.set("n", "<leader><up>", function()
+  -- Check fold settings
+  local foldmethod = vim.opt.foldmethod:get()
+  local foldenable = vim.opt.foldenable:get()
+  
+  if not foldenable then
+    vim.notify("Folding is disabled! Run :set foldenable", vim.log.levels.WARN)
+    return
+  end
+  
+  vim.cmd("normal! zM")  -- Close all folds
+  vim.notify("Collapsed all (foldmethod=" .. foldmethod .. ")", vim.log.levels.INFO)
+end, { desc = "Collapse all folds" })
+
+vim.keymap.set("n", "<leader><down>", function()
+  vim.cmd("normal! zR")  -- Open all folds
+  vim.notify("Expanded all", vim.log.levels.INFO)
+end, { desc = "Expand all folds" })
+
+-- Individual fold control
+vim.keymap.set("n", "<leader>fc", "zc", { desc = "Close fold under cursor" })
+vim.keymap.set("n", "<leader>fo", "zo", { desc = "Open fold under cursor" })
+vim.keymap.set("n", "<leader>ft", "za", { desc = "Toggle fold under cursor" })
+
+-- Also support za (toggle) on <Space> for quick access
+vim.keymap.set("n", "<leader><Space>", "za", { desc = "Toggle fold" })
+
+-- Debug command to check fold settings
+vim.keymap.set("n", "<leader>fd", function()
+  print("Fold settings:")
+  print("  foldmethod: " .. vim.opt.foldmethod:get())
+  print("  foldenable: " .. tostring(vim.opt.foldenable:get()))
+  print("  foldlevel: " .. vim.opt.foldlevel:get())
+  print("  foldcolumn: " .. vim.opt.foldcolumn:get())
+end, { desc = "Debug fold settings" })

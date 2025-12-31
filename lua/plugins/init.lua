@@ -25,12 +25,17 @@ end
 
 extend(require("plugins.ui"))
 extend(require("plugins.navigation"))
-extend(require("plugins.git"))
+extend(require("plugins.git.plugins"))
 extend(require("plugins.treesitter"))
+extend(require("plugins.mason"))
 extend(require("plugins.completion"))
 extend(require("plugins.formatting"))
 extend(require("plugins.ai"))
 extend(require("plugins.debugger"))
+extend(require("plugins.csv"))
+extend(require("plugins.csvview"))
+extend(require("plugins.markdown"))
+extend(require("plugins.zen"))
 
 -----------------------------------------------------------
 -- Setup lazy.nvim

@@ -34,6 +34,11 @@ return {
           vim.keymap.set("n", "<leader>gr", gs.reset_hunk, opts)
           vim.keymap.set("n", "<leader>gd", gs.diffthis, opts)
           vim.keymap.set("n", "<leader>gB", function() gs.blame_line({ full = true }) end, opts)
+          
+          -- GitLens-style menu popup
+          vim.keymap.set("n", "<leader>gm", function()
+            require("plugins.git.menu").open()
+          end, { buffer = bufnr, silent = true, desc = "Git: Open menu" })
         end,
       })
 
@@ -90,3 +95,4 @@ return {
     end,
   },
 }
+
