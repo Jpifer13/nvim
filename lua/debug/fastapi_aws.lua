@@ -74,7 +74,8 @@ local function start_fastapi_in_terminal(profile)
     cmd,
   })
 
-  -- Auto-attach after a short delay (debugpy is waiting for us)
+  -- Auto-attach after a delay (gives time to click session login popup)
+  -- debugpy is waiting for us with --wait-for-client
   vim.defer_fn(function()
     local ok, dap = pcall(require, "dap")
     if not ok then return end
@@ -90,7 +91,7 @@ local function start_fastapi_in_terminal(profile)
         { localRoot = vim.fn.getcwd(), remoteRoot = vim.fn.getcwd() },
       },
     })
-  end, 400)
+  end, 5000)
 end
 
 function M.pick_and_debug()

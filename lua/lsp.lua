@@ -89,7 +89,7 @@ local function get_python_path(workspace)
   end
 
   -- Check common venv names
-  for _, venv_name in ipairs({ ".venv", "venv", "env" }) do
+  for _, venv_name in ipairs({ ".venv", "venv" }) do
     local venv_path = vim.fn.join({ workspace, venv_name, "bin", "python" }, "/")
     if vim.fn.executable(venv_path) == 1 then
       return venv_path

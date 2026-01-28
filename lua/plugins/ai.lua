@@ -28,7 +28,8 @@ return {
           endpoint = "https://api.anthropic.com",
           model = "claude-sonnet-4-5-20250929",
           timeout = 30000,
-          extra_request_body = { temperature = 0, max_tokens = 64000 },
+          extra_request_body = { temperature = 0.2, max_tokens = 4096 },
+         -- extra_request_body = { temperature = 0, max_tokens = 64000 },
         },
       }
 
@@ -40,7 +41,7 @@ return {
           endpoint = "http://localhost:1234/v1",
           model = model,
           timeout = 60000,
-          extra_request_body = { temperature = 0.2, max_tokens = 2048 },
+          extra_request_body = { temperature = 0.2, max_tokens = 4096 },
         }
       end
 
