@@ -150,49 +150,13 @@ end, { desc = "Debug FastAPI: pick AWS profile -> ae -> start -> debugpy -> atta
 vim.keymap.set("n", "<leader>z", "<cmd>ZenMode<CR>", { desc = "Focus mode (Zen)" })
 
 ---------------------------------------------------------------
--- Avante AI (comprehensive keymaps)
+-- Claude Code AI
 ---------------------------------------------------------------
--- Sidebar management
-vim.keymap.set("n", "<leader>aa", "<cmd>AvanteAsk<CR>", { desc = "Avante: Ask AI" })
-vim.keymap.set("n", "<leader>at", "<cmd>AvanteToggle<CR>", { desc = "Avante: Toggle Sidebar" })
-vim.keymap.set("n", "<leader>ar", "<cmd>AvanteRefresh<CR>", { desc = "Avante: Refresh" })
-vim.keymap.set("n", "<leader>af", "<cmd>AvanteFocus<CR>", { desc = "Avante: Focus Sidebar" })
-
--- Model switcher
--- Model switcher (LM Studio + Claude)
-vim.keymap.set("n", "<leader>am", function()
-  local items = {
-    { label = "claude (Anthropic)", provider = "claude" },
-
-    { label = "openai/gpt-oss-20b", provider = ("lmstudio_%s"):format(("openai/gpt-oss-20b"):gsub("[^%w]+", "_")) },
-    { label = "qwen3-32b", provider = ("lmstudio_%s"):format(("qwen3-32b"):gsub("[^%w]+", "_")) },
-    { label = "athene-v2-chat", provider = ("lmstudio_%s"):format(("athene-v2-chat"):gsub("[^%w]+", "_")) },
-    { label = "qwq-32b", provider = ("lmstudio_%s"):format(("qwq-32b"):gsub("[^%w]+", "_")) },
-    { label = "llama-3.3-70b-instruct", provider = ("lmstudio_%s"):format(("llama-3.3-70b-instruct"):gsub("[^%w]+", "_")) },
-    { label = "gemma-3-27b-it", provider = ("lmstudio_%s"):format(("gemma-3-27b-it"):gsub("[^%w]+", "_")) },
-    { label = "deepseek-r1-distill-qwen-7b", provider = ("lmstudio_%s"):format(("deepseek-r1-distill-qwen-7b"):gsub("[^%w]+", "_")) },
-  }
-
-  vim.ui.select(items, {
-    prompt = "Select Avante model/provider:",
-    format_item = function(item) return item.label end,
-  }, function(choice)
-    if not choice then return end
-    vim.cmd("AvanteSwitchProvider " .. choice.provider)
-    vim.notify("Avante provider: " .. choice.label)
-  end)
-end, { desc = "Avante: Switch model" })
-
--- Chat and interactions
-vim.keymap.set("n", "<leader>ah", "<cmd>AvanteChat<CR>", { desc = "Avante: Open Chat" })
-vim.keymap.set("v", "<leader>aa", ":<C-u>AvanteAsk<CR>", { desc = "Avante: Ask about selection" })
-
--- File management
-vim.keymap.set("n", "<leader>aB", "<cmd>AvanteBuild<CR>", { desc = "Avante: Add all buffers to context" })
-
--- Settings
-vim.keymap.set("n", "<leader>as", "<cmd>AvanteShowRepoMap<CR>", { desc = "Avante: Show repo map" })
-vim.keymap.set("n", "<leader>aS", "<cmd>AvanteClear<CR>", { desc = "Avante: Clear/Stop request" })
+vim.keymap.set("n", "<leader>at", "<cmd>ClaudeCode<CR>", { desc = "Claude: Toggle panel" })
+vim.keymap.set("n", "<leader>af", "<cmd>ClaudeCodeFocus<CR>", { desc = "Claude: Focus panel" })
+vim.keymap.set("v", "<leader>aa", "<cmd>ClaudeCodeSend<CR>", { desc = "Claude: Send selection" })
+vim.keymap.set("n", "<leader>am", "<cmd>ClaudeCodeSelectModel<CR>", { desc = "Claude: Select model" })
+vim.keymap.set("n", "<leader>ab", "<cmd>ClaudeCodeAdd %<CR>", { desc = "Claude: Add current file" })
 
 ---------------------------------------------------------------
 -- Color/Highlighting test and toggle commands
