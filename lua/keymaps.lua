@@ -114,6 +114,13 @@ vim.keymap.set("n", "<leader>du", function()
 end, { desc = "Debug: Toggle UI" })
 
 ---------------------------------------------------------------
+-- SSH Remote
+---------------------------------------------------------------
+vim.keymap.set("n", "<leader>sr", function()
+  require("ssh_remote").pick()
+end, { desc = "SSH Remote: pick host" })
+
+---------------------------------------------------------------
 -- Cheat sheet
 ---------------------------------------------------------------
 vim.keymap.set("n", "<leader>?", function()
