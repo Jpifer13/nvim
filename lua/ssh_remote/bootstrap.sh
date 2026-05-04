@@ -159,8 +159,10 @@ echo ""
 GIT_OK=0
 NVIM_OK=0
 
-check_dep "git"    "git"  ""             && GIT_OK=1
+check_dep "git"    "git"  ""              && GIT_OK=1
 check_dep "neovim" "nvim" "install_neovim" && NVIM_OK=1
+check_dep "node"   "node" ""
+check_dep "npm"    "npm"  ""
 
 echo ""
 
