@@ -111,6 +111,26 @@ install_neovim() {
 }
 
 # =============================================================================
+# Claude Code installer — requires npm
+# =============================================================================
+install_claude_code() {
+  # Refresh PATH in case node was just installed in this session
+  hash -r 2>/dev/null
+  if ! command -v npm &>/dev/null; then
+    # Check common install locations manually
+    for p in /usr/local/bin/npm /usr/bin/npm; do
+      if [ -x "$p" ]; then
+        "$p" install -g @anthropic-ai/claude-code
+        return
+      fi
+    done
+    err "npm is required to install Claude Code."
+    return 1
+  fi
+  npm install -g @anthropic-ai/claude-code
+}
+
+# =============================================================================
 # Dependency check + optional install
 # Usage: check_dep <display-name> <binary-name> [install-function]
 # Returns 0 if available after check, 1 otherwise.
@@ -159,10 +179,14 @@ echo ""
 GIT_OK=0
 NVIM_OK=0
 
-check_dep "git"    "git"  ""              && GIT_OK=1
-check_dep "neovim" "nvim" "install_neovim" && NVIM_OK=1
-check_dep "node"   "node" ""
-check_dep "npm"    "npm"  ""
+check_dep "git"         "git"    ""                    && GIT_OK=1
+check_dep "neovim"      "nvim"   "install_neovim"       && NVIM_OK=1
+check_dep "node"        "node"   ""                     && NODE_OK=1
+if [ "${NODE_OK:-0}" -eq 1 ]; then
+  check_dep "claude-code" "claude" "install_claude_code"
+else
+  warn "Skipping claude-code (requires node/npm)"
+fi
 
 echo ""
 

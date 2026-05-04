@@ -10,7 +10,7 @@ return {
     dependencies = { "folke/snacks.nvim" },
     config = function()
       require("claudecode").setup({
-        terminal_cmd = "/opt/homebrew/bin/claude --model claude-opus-4-6",
+        terminal_cmd = (vim.fn.exepath("claude") or "claude") .. " --model claude-opus-4-6",
         terminal = {
           provider = "snacks",
           snacks_win_opts = {
