@@ -74,6 +74,36 @@ return {
     end,
   },
 
+  -- Diffview (merge/diff UI with conflict resolution keymaps)
+  {
+    "sindrets/diffview.nvim",
+    config = function()
+      local actions = require("diffview.actions")
+      require("diffview").setup({
+        keymaps = {
+          view = {
+            { "n", "<leader>co", actions.conflict_choose("ours"), { desc = "Conflict: accept ours" } },
+            { "n", "<leader>ct", actions.conflict_choose("theirs"), { desc = "Conflict: accept theirs" } },
+            { "n", "<leader>cb", actions.conflict_choose("base"), { desc = "Conflict: accept base" } },
+            { "n", "<leader>ca", actions.conflict_choose("all"), { desc = "Conflict: accept all" } },
+            { "n", "<leader>cO", actions.conflict_choose_all("ours"), { desc = "Conflict: accept ALL ours (file)" } },
+            { "n", "<leader>cT", actions.conflict_choose_all("theirs"), { desc = "Conflict: accept ALL theirs (file)" } },
+            { "n", "<leader>cB", actions.conflict_choose_all("base"), { desc = "Conflict: accept ALL base (file)" } },
+            { "n", "<leader>cA", actions.conflict_choose_all("all"), { desc = "Conflict: accept ALL (file)" } },
+            { "n", "]x", actions.next_conflict, { desc = "Next conflict" } },
+            { "n", "[x", actions.prev_conflict, { desc = "Previous conflict" } },
+          },
+          file_panel = {
+            { "n", "<leader>co", actions.conflict_choose("ours"), { desc = "Conflict: accept ours" } },
+            { "n", "<leader>ct", actions.conflict_choose("theirs"), { desc = "Conflict: accept theirs" } },
+            { "n", "<leader>cO", actions.conflict_choose_all("ours"), { desc = "Conflict: accept ALL ours (file)" } },
+            { "n", "<leader>cT", actions.conflict_choose_all("theirs"), { desc = "Conflict: accept ALL theirs (file)" } },
+          },
+        },
+      })
+    end,
+  },
+
   -- Git UI (Neogit) + Diffview integration
   {
     "NeogitOrg/neogit",

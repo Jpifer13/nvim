@@ -1,28 +1,27 @@
 return {
-  -- Copilot core
+  -- Copilot — native ghost text suggestions
   {
     "zbirenbaum/copilot.lua",
     cmd = "Copilot",
     event = "InsertEnter",
     config = function()
       require("copilot").setup({
-        suggestion = { enabled = false }, -- handled by nvim-cmp
+        suggestion = {
+          enabled = true,
+          auto_trigger = true,
+          keymap = {
+            accept = "<Tab>",
+            next = "<M-]>",
+            prev = "<M-[>",
+            dismiss = "<C-e>",
+          },
+        },
         panel = { enabled = false },
       })
     end,
   },
 
-  -- Copilot as an nvim-cmp source
-  {
-    "zbirenbaum/copilot-cmp",
-    event = "InsertEnter",
-    dependencies = { "zbirenbaum/copilot.lua" },
-    config = function()
-      require("copilot_cmp").setup()
-    end,
-  },
-
-  -- Completion engine
+  -- Completion engine (manual trigger only — no auto-popup)
   {
     "hrsh7th/nvim-cmp",
     event = "InsertEnter",
@@ -31,13 +30,16 @@ return {
       "L3MON4D3/LuaSnip",
       "hrsh7th/cmp-path",
       "hrsh7th/cmp-buffer",
-      "zbirenbaum/copilot-cmp", -- ensure copilot source exists
     },
     config = function()
       local cmp = require("cmp")
       local luasnip = require("luasnip")
 
       cmp.setup({
+        completion = {
+          autocomplete = false, -- only show on manual <C-Space>
+        },
+
         snippet = {
           expand = function(args)
             luasnip.lsp_expand(args.body)
@@ -54,8 +56,6 @@ return {
           ["<C-e>"] = cmp.mapping.abort(),
           ["<CR>"] = cmp.mapping.confirm({ select = true }),
 
-          -- ✅ VS Code / Cursor behavior:
-          -- Tab accepts the current completion
           ["<Tab>"] = cmp.mapping(function(fallback)
             if cmp.visible() then
               cmp.confirm({ select = true })
@@ -74,7 +74,6 @@ return {
         }),
 
         sources = cmp.config.sources({
-          { name = "copilot", priority = 1000 }, -- [AI]
           { name = "nvim_lsp", priority = 750 }, -- [LSP]
           { name = "path", priority = 500 },     -- [Path]
           { name = "buffer", priority = 250 },   -- [Buf]
@@ -84,7 +83,6 @@ return {
           fields = { "abbr", "kind", "menu" },
           format = function(entry, item)
             item.menu = ({
-              copilot = "[AI]",
               nvim_lsp = "[LSP]",
               path = "[Path]",
               buffer = "[Buf]",

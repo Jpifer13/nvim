@@ -55,6 +55,18 @@ local function get_menu_lines()
     "  n    Next hunk",
     "  p    Previous hunk",
     "",
+    "⚔️  CONFLICT RESOLUTION (in Diffview)",
+    "  <Space>co  Accept ours (hunk)",
+    "  <Space>ct  Accept theirs (hunk)",
+    "  <Space>cb  Accept base (hunk)",
+    "  <Space>ca  Accept all sides (hunk)",
+    "  <Space>cO  Accept ALL ours (file)",
+    "  <Space>cT  Accept ALL theirs (file)",
+    "  <Space>cB  Accept ALL base (file)",
+    "  <Space>cA  Accept ALL sides (file)",
+    "  ]x         Next conflict",
+    "  [x         Previous conflict",
+    "",
     "═══════════════════════════════════════════════════════",
     "Press a key to execute action, or 'q'/'Esc' to close",
   }
@@ -82,7 +94,7 @@ function M.open()
   vim.bo[buf].filetype = "markdown"
 
   local width = 60
-  local height = 28
+  local height = 38
   local row = math.floor((vim.o.lines - height) / 2)
   local col = math.floor((vim.o.columns - width) / 2)
 

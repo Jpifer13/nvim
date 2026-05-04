@@ -8,6 +8,10 @@ vim.opt.termguicolors = true
 vim.opt.signcolumn = "yes"
 vim.opt.scrolloff = 8
 
+-- Set terminal tab title to current working directory basename
+vim.opt.title = true
+vim.opt.titlestring = '%{fnamemodify(getcwd(), ":t")}'
+
 vim.opt.expandtab = true
 vim.opt.tabstop = 2
 vim.opt.shiftwidth = 2

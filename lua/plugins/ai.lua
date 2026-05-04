@@ -20,6 +20,9 @@ return {
             border = "rounded",
           },
         },
+        diff_opts = {
+          open_in_new_tab = true,
+        },
       })
     end,
   },
