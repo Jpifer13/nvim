@@ -169,18 +169,20 @@ install_node() {
 install_claude_code() {
   # Refresh PATH in case node was just installed in this session
   hash -r 2>/dev/null
-  if ! command -v npm &>/dev/null; then
-    # Check common install locations manually
+  local npm_bin=""
+  if command -v npm &>/dev/null; then
+    npm_bin="npm"
+  else
     for p in /usr/local/bin/npm /usr/bin/npm; do
-      if [ -x "$p" ]; then
-        "$p" install -g @anthropic-ai/claude-code
-        return
-      fi
+      if [ -x "$p" ]; then npm_bin="$p"; break; fi
     done
+  fi
+  if [ -z "$npm_bin" ]; then
     err "npm is required to install Claude Code."
     return 1
   fi
-  npm install -g @anthropic-ai/claude-code
+  # Use sudo so the binary lands in /usr/local/bin (on Neovim's PATH)
+  sudo "$npm_bin" install -g @anthropic-ai/claude-code
 }
 
 # =============================================================================

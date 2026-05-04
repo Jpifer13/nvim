@@ -22,6 +22,21 @@ vim.opt.smartcase = true
 
 vim.opt.clipboard = "unnamedplus"
 
+-- Use OSC 52 for clipboard over SSH (no xclip/xsel needed on remote)
+if os.getenv("SSH_TTY") then
+  vim.g.clipboard = {
+    name = "OSC 52",
+    copy = {
+      ["+"] = require("vim.ui.clipboard.osc52").copy("+"),
+      ["*"] = require("vim.ui.clipboard.osc52").copy("*"),
+    },
+    paste = {
+      ["+"] = require("vim.ui.clipboard.osc52").paste("+"),
+      ["*"] = require("vim.ui.clipboard.osc52").paste("*"),
+    },
+  }
+end
+
 -- Folding (code collapse like VSCode)
 vim.opt.foldmethod = "indent"
 vim.opt.foldlevel = 99  -- Open all folds by default
