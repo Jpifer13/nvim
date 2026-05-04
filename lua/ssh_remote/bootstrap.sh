@@ -111,6 +111,59 @@ install_neovim() {
 }
 
 # =============================================================================
+# Node.js installer — package name varies by distro (nodejs vs node),
+# and distro versions are often ancient, so use the official binary.
+# =============================================================================
+install_node() {
+  if [ "$PKG_MANAGER" = "brew" ]; then
+    brew install node
+    return
+  fi
+
+  local arch
+  arch=$(uname -m)
+  local node_arch
+
+  if [ "$arch" = "x86_64" ]; then
+    node_arch="x64"
+  elif [ "$arch" = "aarch64" ] || [ "$arch" = "arm64" ]; then
+    node_arch="arm64"
+  else
+    warn "Unsupported arch '${arch}' — trying package manager..."
+    install_package nodejs
+    return
+  fi
+
+  if ! command -v curl &>/dev/null && ! command -v wget &>/dev/null; then
+    err "Neither curl nor wget is available — cannot download node."
+    return 1
+  fi
+
+  local tmp
+  tmp=$(mktemp -d)
+  local url="https://nodejs.org/dist/latest-v22.x/node-v22.16.0-linux-${node_arch}.tar.xz"
+  info "Downloading Node.js..."
+
+  if command -v curl &>/dev/null; then
+    curl -fsSL "$url" -o "$tmp/node.tar.xz"
+  else
+    wget -q "$url" -O "$tmp/node.tar.xz"
+  fi
+
+  tar -xJf "$tmp/node.tar.xz" -C "$tmp"
+
+  local extracted_dir
+  extracted_dir=$(find "$tmp" -maxdepth 1 -type d -name 'node-*' | head -1)
+  sudo cp -r "$extracted_dir/bin"     /usr/local/
+  sudo cp -r "$extracted_dir/lib"     /usr/local/
+  sudo cp -r "$extracted_dir/include" /usr/local/ 2>/dev/null || true
+  sudo cp -r "$extracted_dir/share"   /usr/local/ 2>/dev/null || true
+
+  rm -rf "$tmp"
+  hash -r 2>/dev/null
+}
+
+# =============================================================================
 # Claude Code installer — requires npm
 # =============================================================================
 install_claude_code() {
@@ -181,7 +234,7 @@ NVIM_OK=0
 
 check_dep "git"         "git"    ""                    && GIT_OK=1
 check_dep "neovim"      "nvim"   "install_neovim"       && NVIM_OK=1
-check_dep "node"        "node"   ""                     && NODE_OK=1
+check_dep "node"        "node"   "install_node"          && NODE_OK=1
 if [ "${NODE_OK:-0}" -eq 1 ]; then
   check_dep "claude-code" "claude" "install_claude_code"
 else
