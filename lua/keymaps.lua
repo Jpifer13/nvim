@@ -201,10 +201,190 @@ vim.keymap.set("n", "<leader>as", function()
   vim.notify("Claude session reset — next <leader>at will show session picker", vim.log.levels.INFO)
 end, { desc = "Claude: Switch session" })
 
+-- Hide Claude from inside the terminal (like floating terminal toggle)
+vim.keymap.set("t", "<leader>AT", function()
+  vim.cmd("ClaudeCode")
+end, { desc = "Claude: Minimize (hide window)" })
+
 vim.keymap.set("n", "<leader>af", "<cmd>ClaudeCodeFocus<CR>", { desc = "Claude: Focus panel" })
 vim.keymap.set("v", "<leader>aa", "<cmd>ClaudeCodeSend<CR>", { desc = "Claude: Send selection" })
 vim.keymap.set("n", "<leader>am", "<cmd>ClaudeCodeSelectModel<CR>", { desc = "Claude: Select model" })
 vim.keymap.set("n", "<leader>ab", "<cmd>ClaudeCodeAdd %<CR>", { desc = "Claude: Add current file" })
+
+---------------------------------------------------------------
+-- AI Git helpers (Claude Code CLI)
+---------------------------------------------------------------
+local function get_claude_path()
+  local path = vim.fn.exepath("claude")
+  return path ~= "" and path or "claude"
+end
+
+-- AI branch: generate name from current changes
+vim.keymap.set("n", "<leader>gn", function()
+  local diff = vim.fn.system("git diff HEAD")
+  if vim.v.shell_error ~= 0 or vim.trim(diff) == "" then
+    diff = vim.fn.system("git status --porcelain")
+  end
+  if vim.trim(diff) == "" then
+    vim.notify("No changes to base branch name on", vim.log.levels.WARN)
+    return
+  end
+  if #diff > 8000 then diff = diff:sub(1, 8000) .. "\n...(truncated)" end
+
+  vim.notify("Generating branch name...", vim.log.levels.INFO)
+
+  local prompt = "Based on this git diff, suggest ONE branch name. kebab-case, 2-4 words, prefix with feat/ fix/ refactor/ or chore/. Output ONLY the branch name, nothing else.\n\n" .. diff
+
+  vim.fn.jobstart({ get_claude_path(), "-p", prompt }, {
+    stdout_buffered = true,
+    on_stdout = function(_, data)
+      local branch = vim.trim(table.concat(data, ""))
+      if branch == "" then return end
+      vim.schedule(function()
+        vim.ui.input({ prompt = "Create branch: ", default = branch }, function(input)
+          if not input or input == "" then return end
+          local out = vim.fn.system({ "git", "checkout", "-b", input })
+          vim.notify(
+            vim.v.shell_error == 0 and ("Switched to: " .. input) or ("Error: " .. out),
+            vim.v.shell_error == 0 and vim.log.levels.INFO or vim.log.levels.ERROR
+          )
+        end)
+      end)
+    end,
+  })
+end, { desc = "Git: AI create branch" })
+
+-- AI commit: generate message from staged changes, with staging picker
+vim.keymap.set("n", "<leader>gc", function()
+  local status = vim.fn.system("git status --porcelain")
+  if vim.trim(status) == "" then
+    vim.notify("Nothing to commit", vim.log.levels.WARN)
+    return
+  end
+
+  -- Parse staged vs unstaged files
+  local unstaged = {}
+  local has_staged = false
+  for line in status:gmatch("[^\n]+") do
+    local x, y = line:sub(1, 1), line:sub(2, 2)
+    local file = line:sub(4)
+    if x ~= " " and x ~= "?" then has_staged = true end
+    if y ~= " " or x == "?" then
+      table.insert(unstaged, line:sub(1, 2) .. " " .. file)
+    end
+  end
+
+  -- Generate AI commit message from whatever is staged, then commit
+  local function ai_commit()
+    local diff = vim.fn.system("git diff --staged")
+    if vim.trim(diff) == "" then
+      vim.notify("Nothing staged", vim.log.levels.WARN)
+      return
+    end
+    if #diff > 8000 then diff = diff:sub(1, 8000) .. "\n...(truncated)" end
+
+    vim.notify("Generating commit message...", vim.log.levels.INFO)
+
+    local prompt = "Write a concise git commit message for these staged changes. Conventional commit format (feat:, fix:, refactor:, etc). One line, under 72 chars. Output ONLY the message, nothing else.\n\n" .. diff
+
+    vim.fn.jobstart({ get_claude_path(), "-p", prompt }, {
+      stdout_buffered = true,
+      on_stdout = function(_, data)
+        local msg = vim.trim(table.concat(data, ""))
+        if msg == "" then return end
+        vim.schedule(function()
+          vim.ui.input({ prompt = "Commit message: ", default = msg }, function(input)
+            if not input or input == "" then return end
+            local out = vim.fn.system({ "git", "commit", "-m", input })
+            vim.notify(
+              vim.v.shell_error == 0 and ("Committed: " .. input) or ("Error: " .. out),
+              vim.v.shell_error == 0 and vim.log.levels.INFO or vim.log.levels.ERROR
+            )
+          end)
+        end)
+      end,
+    })
+  end
+
+  -- Telescope multi-select picker for staging files
+  local function pick_files_to_stage(callback)
+    local pickers = require("telescope.pickers")
+    local finders = require("telescope.finders")
+    local conf = require("telescope.config").values
+    local actions = require("telescope.actions")
+    local action_state = require("telescope.actions.state")
+
+    pickers.new({}, {
+      prompt_title = "Stage files (Tab = select, Enter = confirm)",
+      finder = finders.new_table({ results = unstaged }),
+      sorter = conf.generic_sorter({}),
+      attach_mappings = function(prompt_bufnr)
+        actions.select_default:replace(function()
+          local picker = action_state.get_current_picker(prompt_bufnr)
+          local selections = picker:get_multi_selection()
+          if #selections == 0 then
+            local entry = action_state.get_selected_entry()
+            if entry then selections = { entry } end
+          end
+          actions.close(prompt_bufnr)
+
+          local files = {}
+          for _, sel in ipairs(selections) do
+            local val = sel[1] or sel.value
+            -- Strip the status prefix (e.g. " M " or "?? ") to get the filename
+            table.insert(files, val:sub(4))
+          end
+          if #files > 0 then
+            local cmd = { "git", "add", "--" }
+            vim.list_extend(cmd, files)
+            vim.fn.system(cmd)
+            vim.notify("Staged " .. #files .. " file(s)", vim.log.levels.INFO)
+          end
+          callback()
+        end)
+        return true
+      end,
+    }):find()
+  end
+
+  -- Decide flow based on current state
+  if #unstaged == 0 then
+    -- Everything already staged
+    ai_commit()
+  elseif has_staged then
+    -- Some staged, some not — offer choices
+    vim.ui.select(
+      { "Commit staged only", "Stage more files", "Stage all and commit" },
+      { prompt = "Unstaged changes exist:" },
+      function(choice)
+        if not choice then return end
+        if choice == "Commit staged only" then
+          ai_commit()
+        elseif choice == "Stage more files" then
+          pick_files_to_stage(ai_commit)
+        elseif choice == "Stage all and commit" then
+          vim.fn.system("git add -A")
+          ai_commit()
+        end
+      end
+    )
+  else
+    -- Nothing staged — must stage something
+    vim.ui.select(
+      { "Select files to stage", "Stage all" },
+      { prompt = "Nothing staged:" },
+      function(choice)
+        if not choice then return end
+        if choice == "Select files to stage" then
+          pick_files_to_stage(ai_commit)
+        elseif choice == "Stage all" then
+          vim.fn.system("git add -A")
+          ai_commit()
+        end
+      end
+    )
+  end
+end, { desc = "Git: AI commit" })
 
 ---------------------------------------------------------------
 -- Color/Highlighting test and toggle commands
