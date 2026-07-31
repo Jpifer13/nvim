@@ -141,8 +141,26 @@ install_node() {
 
   local tmp
   tmp=$(mktemp -d)
-  local url="https://nodejs.org/dist/latest-v22.x/node-v22.16.0-linux-${node_arch}.tar.xz"
-  info "Downloading Node.js..."
+
+  # Resolve the actual latest v22.x filename instead of hardcoding a version
+  local index_url="https://nodejs.org/dist/latest-v22.x/"
+  local filename=""
+  info "Resolving latest Node.js v22.x..."
+
+  if command -v curl &>/dev/null; then
+    filename=$(curl -fsSL "$index_url" | grep -oP "node-v[0-9.]+-linux-${node_arch}\\.tar\\.xz" | head -1)
+  else
+    filename=$(wget -qO- "$index_url" | grep -oP "node-v[0-9.]+-linux-${node_arch}\\.tar\\.xz" | head -1)
+  fi
+
+  if [ -z "$filename" ]; then
+    err "Could not resolve Node.js download URL"
+    rm -rf "$tmp"
+    return 1
+  fi
+
+  local url="${index_url}${filename}"
+  info "Downloading ${filename}..."
 
   if command -v curl &>/dev/null; then
     curl -fsSL "$url" -o "$tmp/node.tar.xz"
@@ -154,10 +172,10 @@ install_node() {
 
   local extracted_dir
   extracted_dir=$(find "$tmp" -maxdepth 1 -type d -name 'node-*' | head -1)
-  sudo cp -r "$extracted_dir/bin"     /usr/local/
-  sudo cp -r "$extracted_dir/lib"     /usr/local/
-  sudo cp -r "$extracted_dir/include" /usr/local/ 2>/dev/null || true
-  sudo cp -r "$extracted_dir/share"   /usr/local/ 2>/dev/null || true
+  sudo cp -r "$extracted_dir/bin/"*     /usr/local/bin/
+  sudo cp -r "$extracted_dir/lib/"*     /usr/local/lib/ 2>/dev/null || true
+  sudo cp -r "$extracted_dir/include/"* /usr/local/include/ 2>/dev/null || true
+  sudo cp -r "$extracted_dir/share/"*   /usr/local/share/ 2>/dev/null || true
 
   rm -rf "$tmp"
   hash -r 2>/dev/null
@@ -201,14 +219,28 @@ check_dep() {
   fi
 
   # Check common install locations not always on PATH in SSH sessions
-  for p in /usr/local/bin/"$bin" /usr/bin/"$bin"; do
-    if [ -x "$p" ]; then
-      ok "$name ($p — adding to PATH)"
-      export PATH="/usr/local/bin:/usr/bin:$PATH"
+  local search_dirs="/usr/local/bin /usr/bin /snap/bin $HOME/.nvm/current/bin $HOME/.local/bin $HOME/.fnm/aliases/default/bin"
+  for dir in $search_dirs; do
+    if [ -x "$dir/$bin" ]; then
+      ok "$name ($dir/$bin — adding to PATH)"
+      export PATH="$dir:$PATH"
       hash -r 2>/dev/null
       return 0
     fi
   done
+  # nvm: check version directories if no 'current' symlink
+  if [ -d "$HOME/.nvm/versions/node" ]; then
+    local nvm_node
+    nvm_node=$(find "$HOME/.nvm/versions/node" -maxdepth 2 -name "$bin" -path "*/bin/$bin" 2>/dev/null | sort -V | tail -1)
+    if [ -n "$nvm_node" ] && [ -x "$nvm_node" ]; then
+      local nvm_bin_dir
+      nvm_bin_dir=$(dirname "$nvm_node")
+      ok "$name ($nvm_node — adding to PATH)"
+      export PATH="$nvm_bin_dir:$PATH"
+      hash -r 2>/dev/null
+      return 0
+    fi
+  fi
 
   warn "$name is not installed"
   printf "   Install %s? [y/N] " "$name"
@@ -228,10 +260,10 @@ check_dep() {
       return 0
     fi
     # Check common locations in case PATH wasn't updated
-    for p in /usr/local/bin/"$bin" /usr/bin/"$bin"; do
-      if [ -x "$p" ]; then
-        ok "$name installed ($p — adding to PATH)"
-        export PATH="/usr/local/bin:/usr/bin:$PATH"
+    for dir in $search_dirs; do
+      if [ -x "$dir/$bin" ]; then
+        ok "$name installed ($dir/$bin — adding to PATH)"
+        export PATH="$dir:$PATH"
         hash -r 2>/dev/null
         return 0
       fi
