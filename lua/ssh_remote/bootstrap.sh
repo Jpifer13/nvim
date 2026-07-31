@@ -196,9 +196,19 @@ check_dep() {
   local installer="${3:-}"
 
   if command -v "$bin" &>/dev/null; then
-    ok "$name"
+    ok "$name ($(command -v "$bin"))"
     return 0
   fi
+
+  # Check common install locations not always on PATH in SSH sessions
+  for p in /usr/local/bin/"$bin" /usr/bin/"$bin"; do
+    if [ -x "$p" ]; then
+      ok "$name ($p — adding to PATH)"
+      export PATH="/usr/local/bin:/usr/bin:$PATH"
+      hash -r 2>/dev/null
+      return 0
+    fi
+  done
 
   warn "$name is not installed"
   printf "   Install %s? [y/N] " "$name"
@@ -212,13 +222,22 @@ check_dep() {
       install_package "$name"
     fi
 
+    hash -r 2>/dev/null
     if command -v "$bin" &>/dev/null; then
       ok "$name installed"
       return 0
-    else
-      err "$name install failed — you may need to install it manually."
-      return 1
     fi
+    # Check common locations in case PATH wasn't updated
+    for p in /usr/local/bin/"$bin" /usr/bin/"$bin"; do
+      if [ -x "$p" ]; then
+        ok "$name installed ($p — adding to PATH)"
+        export PATH="/usr/local/bin:/usr/bin:$PATH"
+        hash -r 2>/dev/null
+        return 0
+      fi
+    done
+    err "$name install failed — you may need to install it manually."
+    return 1
   else
     info "Skipping $name"
     return 1
@@ -230,6 +249,8 @@ check_dep() {
 # =============================================================================
 echo -e "${BOLD}Checking dependencies...${NC}"
 echo ""
+
+hash -r 2>/dev/null
 
 GIT_OK=0
 NVIM_OK=0
