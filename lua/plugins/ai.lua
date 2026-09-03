@@ -13,13 +13,13 @@ return {
         terminal_cmd = (function()
           local path = vim.fn.exepath("claude")
           if path == "" then path = "claude" end
-          return path .. " --model claude-opus-4-6"
+          return path .. " --model claude-opus-5"
         end)(),
         terminal = {
           provider = "snacks",
           snacks_win_opts = {
             position = "float",
-            width = 0.85,
+            width = 0.82,
             height = 0.8,
             border = "rounded",
           },
