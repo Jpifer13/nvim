@@ -1,5 +1,11 @@
 vim.g.mapleader = " "
 
+-- Preferences ------------------------------------------------------------
+-- Which neighbouring buffer to focus after closing a tab with <leader>q.
+-- "right" -> the tab to the right (falls back to the left if last).
+-- "left"  -> the tab to the left  (falls back to the right if first).
+vim.g.close_tab_direction = "right"
+
 vim.opt.number = true
 vim.opt.relativenumber = true
 vim.opt.cursorline = true

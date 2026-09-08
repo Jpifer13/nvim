@@ -6,7 +6,42 @@
 -- Core file / editor commands
 ---------------------------------------------------------------
 vim.keymap.set("n", "<leader>w", ":w<CR>", { silent = true, desc = "Save" })
-vim.keymap.set("n", "<leader>q", ":q<CR>", { silent = true, desc = "Quit" })
+vim.keymap.set("n", "<leader>q", function()
+  local bufs = vim.tbl_filter(function(b)
+    return vim.bo[b].buflisted and vim.bo[b].filetype ~= "NvimTree"
+  end, vim.api.nvim_list_bufs())
+  if #bufs <= 1 then
+    vim.cmd("qa")
+    return
+  end
+
+  local cur = vim.api.nvim_get_current_buf()
+  -- Don't try to close the tree itself if it's focused.
+  if vim.bo[cur].filetype == "NvimTree" then
+    return
+  end
+
+  -- Focus the neighbouring buffer before deleting, so focus stays in the
+  -- editor instead of jumping to the file tree. Direction is controlled by
+  -- vim.g.close_tab_direction ("right" or "left"); falls back to the other
+  -- side at the ends of the list.
+  local target
+  local prefer_left = vim.g.close_tab_direction == "left"
+  for i, b in ipairs(bufs) do
+    if b == cur then
+      if prefer_left then
+        target = bufs[i - 1] or bufs[i + 1]
+      else
+        target = bufs[i + 1] or bufs[i - 1]
+      end
+      break
+    end
+  end
+  if target then
+    vim.api.nvim_set_current_buf(target)
+  end
+  vim.cmd("bdelete " .. cur)
+end, { silent = true, desc = "Close tab (quit if last)" })
 
 -- Toggle auto-save
 vim.g.autosave_enabled = true  -- Enabled by default
@@ -56,12 +91,54 @@ vim.keymap.set("t", "<leader>\\", function()
 end, { desc = "Toggle Floating Terminal" })
 
 ---------------------------------------------------------------
--- Window navigation (not motions)
+-- Buffer tab navigation (falls through to window at edges)
 ---------------------------------------------------------------
-vim.keymap.set("n", "<C-h>", "<C-w>h", { desc = "Window Left" })
+local function listed_bufs_sorted()
+  local bufs = {}
+  for _, b in ipairs(vim.api.nvim_list_bufs()) do
+    if vim.bo[b].buflisted then
+      table.insert(bufs, b)
+    end
+  end
+  table.sort(bufs)
+  return bufs
+end
+
+vim.keymap.set("n", "<C-h>", function()
+  local cur = vim.api.nvim_get_current_buf()
+  if not vim.bo[cur].buflisted then
+    vim.cmd("wincmd h")
+    return
+  end
+  local bufs = listed_bufs_sorted()
+  if #bufs <= 1 or cur == bufs[1] then
+    vim.cmd("wincmd h")
+  else
+    vim.cmd("BufferLineCyclePrev")
+  end
+end, { desc = "Prev tab / window left at edge" })
+
+vim.keymap.set("n", "<C-l>", function()
+  local cur = vim.api.nvim_get_current_buf()
+  if not vim.bo[cur].buflisted then
+    vim.cmd("wincmd l")
+    return
+  end
+  local bufs = listed_bufs_sorted()
+  if #bufs <= 1 or cur == bufs[#bufs] then
+    vim.cmd("wincmd l")
+  else
+    vim.cmd("BufferLineCycleNext")
+  end
+end, { desc = "Next tab / window right at edge" })
+
+---------------------------------------------------------------
+-- Window navigation
+---------------------------------------------------------------
+vim.keymap.set("n", "<C-S-h>", "<C-w>h", { desc = "Window Left" })
+vim.keymap.set("n", "<C-S-l>", "<C-w>l", { desc = "Window Right" })
 vim.keymap.set("n", "<C-j>", "<C-w>j", { desc = "Window Down" })
 vim.keymap.set("n", "<C-k>", "<C-w>k", { desc = "Window Up" })
-vim.keymap.set("n", "<C-l>", "<C-w>l", { desc = "Window Right" })
 
 ---------------------------------------------------------------
 -- Run Python file in venv
@@ -149,6 +226,13 @@ vim.keymap.set("n", "<leader>df", function()
 end, { desc = "Debug FastAPI: pick AWS profile -> ae -> start -> debugpy -> attach" })
 
 ---------------------------------------------------------------
+-- Tetris
+---------------------------------------------------------------
+vim.keymap.set("n", "<leader>TT", function()
+  require("tetris").start()
+end, { desc = "Tetris" })
+
+---------------------------------------------------------------
 -- Zen mode
 ---------------------------------------------------------------
 vim.keymap.set("n", "<leader>z", "<cmd>ZenMode<CR>", { desc = "Focus mode (Zen)" })
@@ -159,7 +243,7 @@ vim.keymap.set("n", "<leader>z", "<cmd>ZenMode<CR>", { desc = "Focus mode (Zen)"
 local claude_session_started = false
 
 -- Toggle Claude — shows session picker only on first open per Neovim session
-vim.keymap.set("n", "<leader>at", function()
+local function claude_toggle()
   if claude_session_started then
     -- Already launched this session, just toggle
     vim.cmd("ClaudeCode")
@@ -182,7 +266,48 @@ vim.keymap.set("n", "<leader>at", function()
       end
     end
   )
-end, { desc = "Claude: Toggle/session picker" })
+end
+
+-- Toggle OpenCode — persistent snacks terminal (see lua/opencode.lua)
+local function opencode_toggle()
+  require("opencode").open()
+end
+
+-- Toggle AI assistant — close if one is open, otherwise pick
+local function is_claude_open()
+  for _, win in ipairs(vim.api.nvim_list_wins()) do
+    if vim.api.nvim_win_get_config(win).relative ~= "" then
+      local buf = vim.api.nvim_win_get_buf(win)
+      if vim.api.nvim_buf_get_name(buf):match("claude") then
+        return true
+      end
+    end
+  end
+  return false
+end
+
+vim.keymap.set("n", "<leader>at", function()
+  if is_claude_open() then
+    vim.cmd("ClaudeCode")
+    return
+  end
+  if require("opencode").is_open() then
+    require("opencode").close()
+    return
+  end
+  vim.ui.select(
+    { "Claude Code", "OpenCode" },
+    { prompt = "AI assistant:" },
+    function(choice)
+      if not choice then return end
+      if choice == "Claude Code" then
+        claude_toggle()
+      elseif choice == "OpenCode" then
+        opencode_toggle()
+      end
+    end
+  )
+end, { desc = "AI: Pick assistant (Claude Code / OpenCode)" })
 
 -- Switch to a new session or pick a different one mid-session
 vim.keymap.set("n", "<leader>as", function()
