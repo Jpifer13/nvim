@@ -162,6 +162,7 @@ local function lines()
     "  OBJECTS:   iw/aw Word    i\"/a\" Quotes    i(/a( Parens    i{/a{ Braces    ip/ap Paragraph",
     "  EXAMPLES:  diw Del word  ci\" Change quote  yap Yank para  va{ Select braces",
     "  SEARCH:    /text →       ?text ←           n Next         N Prev         :noh Clear",
+    "  SMART SEL: <CR> Node under cursor   <CR> Grow to parent (visual)   <Tab> Enclosing scope   <S-Tab> Shrink",
     "",
     "          ═══════════════════════════════════════════════════════════",
     "                 Press 'q' or 'Esc' to close  •  Auto-save enabled",

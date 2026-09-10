@@ -516,40 +516,69 @@ end, { desc = "Git: AI commit" })
 ---------------------------------------------------------------
 -- Test command to verify syntax highlighting is working
 vim.keymap.set("n", "<leader>th", function()
-  -- Check if Treesitter is active
-  local ts_ok, ts_configs = pcall(require, "nvim-treesitter.configs")
-  if ts_ok then
-    vim.notify("Treesitter is loaded", vim.log.levels.INFO)
-  else
-    vim.notify("Treesitter NOT loaded", vim.log.levels.ERROR)
+  local parsers = require("treesitter_parsers")
+  local buf = vim.api.nvim_get_current_buf()
+  local ft = vim.bo[buf].filetype
+  local lang = vim.treesitter.language.get_lang(ft)
+
+  if not lang or not parsers.is_available(lang) then
+    vim.notify("No treesitter parser exists for " .. ft, vim.log.levels.WARN)
+    return
   end
-  
-  -- Check current buffer parser
-  local has_parser = vim.treesitter.language.get_lang(vim.bo.filetype)
-  if has_parser then
-    vim.notify("Parser found for " .. vim.bo.filetype, vim.log.levels.INFO)
-  else
-    vim.notify("NO parser for " .. vim.bo.filetype, vim.log.levels.WARN)
+
+  if not parsers.is_installed(lang) then
+    vim.notify("Parser for " .. lang .. " not installed — installing", vim.log.levels.WARN)
+    parsers.install({ lang })
+    return
   end
-  
-  -- Force enable Treesitter highlighting
-  vim.cmd("TSBufEnable highlight")
-  vim.notify("Forced Treesitter highlighting ON", vim.log.levels.INFO)
+
+  -- Force Treesitter highlighting on for this buffer
+  if pcall(vim.treesitter.start, buf, lang) then
+    vim.notify("Treesitter highlighting ON (" .. lang .. ")", vim.log.levels.INFO)
+  else
+    vim.notify("Treesitter failed to start for " .. lang, vim.log.levels.ERROR)
+  end
 end, { desc = "Toggle highlights test" })
 
 -- Quick command to force Treesitter
 vim.keymap.set("n", "<leader>tf", function()
-  local ts_ok = pcall(require, "nvim-treesitter")
-  if not ts_ok then
-    vim.notify("Treesitter NOT installed!", vim.log.levels.ERROR)
-    vim.notify("Run :Lazy sync to install it", vim.log.levels.WARN)
+  local buf = vim.api.nvim_get_current_buf()
+  local lang = vim.treesitter.language.get_lang(vim.bo[buf].filetype)
+  if not lang then
+    vim.notify("No treesitter language for this buffer", vim.log.levels.WARN)
     return
   end
-  
-  pcall(vim.cmd, "TSBufEnable highlight")
-  vim.cmd("edit")
-  vim.notify("Forced Treesitter refresh", vim.log.levels.INFO)
+
+  pcall(vim.treesitter.stop, buf)
+  if pcall(vim.treesitter.start, buf, lang) then
+    vim.notify("Forced Treesitter refresh (" .. lang .. ")", vim.log.levels.INFO)
+  else
+    vim.notify("Treesitter refresh failed — try :TSEnsure", vim.log.levels.ERROR)
+  end
 end, { desc = "Force Treesitter refresh" })
+
+---------------------------------------------------------------
+-- Treesitter incremental selection (lua/treesitter_select.lua)
+-- `main` dropped nvim-treesitter's incremental_selection module.
+---------------------------------------------------------------
+vim.keymap.set("n", "<CR>", function()
+  if not require("treesitter_select").init() then
+    -- No parser here; keep the built-in <CR> (down to first non-blank).
+    pcall(vim.cmd, "normal! +")
+  end
+end, { silent = true, desc = "Select node under cursor" })
+
+vim.keymap.set("x", "<CR>", function()
+  require("treesitter_select").grow()
+end, { silent = true, desc = "Expand selection to parent node" })
+
+vim.keymap.set("x", "<Tab>", function()
+  require("treesitter_select").scope()
+end, { silent = true, desc = "Expand selection to enclosing scope" })
+
+vim.keymap.set("x", "<S-Tab>", function()
+  require("treesitter_select").shrink()
+end, { silent = true, desc = "Shrink selection to previous node" })
 
 -- Command to check what's highlighting the file
 vim.keymap.set("n", "<leader>tc", function()
