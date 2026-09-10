@@ -85,6 +85,13 @@ return {
               return false
             end,
           },
+          {
+            name = "OpenCode",
+            icon = "📝",
+            open = function() require("opencode").open() end,
+            close = function() require("opencode").close() end,
+            is_open = function() return require("opencode").is_open() end,
+          },
         },
       })
     end,
