@@ -674,3 +674,46 @@ vim.keymap.set("n", "<leader>fd", function()
   print("  foldlevel: " .. vim.opt.foldlevel:get())
   print("  foldcolumn: " .. vim.opt.foldcolumn:get())
 end, { desc = "Debug fold settings" })
+
+---------------------------------------------------------------
+-- Godot (only registered inside a Godot project)
+---------------------------------------------------------------
+if require("godot.detect").is_project() then
+  vim.keymap.set("n", "<leader>Gr", function()
+    require("godot.run").run()
+  end, { desc = "Godot: Run main scene" })
+
+  vim.keymap.set("n", "<leader>Gc", function()
+    require("godot.run").run({ scene = "current" })
+  end, { desc = "Godot: Run current scene" })
+
+  vim.keymap.set("n", "<leader>Gk", function()
+    if not require("godot.run").stop() then
+      vim.notify("No Godot process running", vim.log.levels.INFO)
+    end
+  end, { desc = "Godot: Stop running game" })
+
+  vim.keymap.set("n", "<leader>Go", function()
+    require("godot.run").toggle_console()
+  end, { desc = "Godot: Toggle output console" })
+
+  vim.keymap.set("n", "<leader>Ge", function()
+    require("godot.run").editor()
+  end, { desc = "Godot: Open project in editor" })
+
+  vim.keymap.set("n", "<leader>Gt", function()
+    require("godot.scene_tree").open()
+  end, { desc = "Godot: Scene tree inspector" })
+
+  vim.keymap.set("n", "<leader>Gd", function()
+    require("godot.docs").open()
+  end, { desc = "Godot: Docs for symbol under cursor" })
+
+  vim.keymap.set("n", "<leader>Gl", function()
+    require("godot.lsp").attach_all()
+  end, { desc = "Godot: Reconnect GDScript LSP" })
+
+  vim.keymap.set("n", "<leader>Gh", function()
+    require("godot.health").report()
+  end, { desc = "Godot: Health check" })
+end

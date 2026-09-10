@@ -210,3 +210,11 @@ vim.api.nvim_create_user_command("LspPythonPath", function()
   vim.notify("Python path: " .. python_path, vim.log.levels.INFO)
   print("Python path: " .. python_path)
 end, { desc = "Show Python path used by LSP" })
+
+-- Exported so other modules can reuse the same client setup without
+-- duplicating it (see lua/godot/lsp.lua, which connects to Godot's TCP server).
+return {
+  capabilities = capabilities,
+  on_attach = on_attach,
+  mason_cmd = mason_cmd,
+}
