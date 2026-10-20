@@ -223,8 +223,17 @@ Verified end to end by installing into a sandbox `HOME`: 49 plugins, none pendin
 - **awsdash** — Toggles the external `awsdash` TUI (pipx-installed from `~/dev/personal/awsdash`) in a
   persistent float, inheriting env-manager's `AWS_PROFILE`. Hidden from inside with a buffer-local
   `nowait` terminal-mode `<leader>A`; `nowait` is needed because the global terminal-mode `<leader>AT`
-  (hide Claude) would otherwise make it wait `timeoutlen`.
-- **env-manager** — Parses `.env` at startup, provides floating editor. All child processes (terminals, test runners, debuggers) inherit the vars.
+  (hide Claude) would otherwise make it wait `timeoutlen`. The profile also travels back: when the
+  float closes, `M.adopt()` reads `~/.cache/awsdash/session.json` (which awsdash writes whenever its
+  session window switches environment) and pushes `AWS_PROFILE` into this Neovim process through
+  `env-manager.set`, so terminals, test runners and debug sessions started afterwards use the same
+  account. Two deliberate limits:
+  - **`AWS_REGION` is set only when awsdash's region differs from the profile's own.** An env var
+    beats a profile's configured region, so pinning one here would silently override the region of
+    whatever profile is chosen next; when an override is dropped the previous value is restored.
+  - **A file older than the current awsdash process is ignored**, so a switch from last week's run is
+    never adopted. `M.adopt{ since = 0 }` reads it regardless.
+- **env-manager** — Parses `.env` at startup, provides floating editor. All child processes (terminals, test runners, debuggers) inherit the vars. `M.set(vars, { persist = true })` is the way other modules push a var in; it rewrites only keys the `.env` ALREADY defines, so nothing creates a project file or adds keys to a hand-written one.
 - **cheatsheet** — Full keybinding reference rendered as a styled modal. Update this when adding keymaps.
 - **markdown_preview** — Pure-Lua markdown renderer in a floating window with syntax highlighting.
 - **treesitter_parsers** — Wraps `require("nvim-treesitter").install()` with the bookkeeping `main` doesn't provide: what's actually installed (Neovim bundles some parsers, which never appear in the install dir), what's available to build, and an in-flight guard. Used by both the treesitter config and the Godot module.

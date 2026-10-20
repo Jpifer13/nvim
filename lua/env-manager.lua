@@ -53,6 +53,36 @@ function M.load()
   end)
 end
 
+--- Set env vars in the running Neovim process, and optionally keep .env in step.
+--- `opts.persist` only rewrites keys the .env ALREADY defines: a profile switch made
+--- elsewhere should not create a project file, nor add keys to one written by hand.
+--- Returns how many lines of .env were updated.
+function M.set(vars, opts)
+  apply_env(vars)
+  if not (opts and opts.persist) then
+    return 0
+  end
+  local path = env_path()
+  if vim.fn.filereadable(path) ~= 1 then
+    return 0
+  end
+  local lines = vim.fn.readfile(path)
+  local written = 0
+  for key, value in pairs(vars) do
+    for i, line in ipairs(lines) do
+      if line:match("^%s*" .. vim.pesc(key) .. "%s*=") then
+        lines[i] = key .. "=" .. value
+        written = written + 1
+        break
+      end
+    end
+  end
+  if written > 0 then
+    vim.fn.writefile(lines, path)
+  end
+  return written
+end
+
 --- Track the editor state
 local state = {
   buf = nil,
