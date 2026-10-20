@@ -10,6 +10,7 @@ local ENSURE_INSTALLED = {
   "markdown",
   "markdown_inline",
   "bash",
+  "java",
   "typescript",
   "tsx",
   "javascript",

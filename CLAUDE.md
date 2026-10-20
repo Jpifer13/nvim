@@ -21,6 +21,11 @@ lua/markdown_preview.lua    -- In-terminal markdown renderer (not web-based)
 lua/treesitter_parsers.lua  -- Parser install/query helpers for nvim-treesitter `main`
 lua/treesitter_select.lua   -- Incremental selection (<CR>/<Tab>/<S-Tab>)
 lua/debug/fastapi_aws.lua   -- FastAPI + AWS SSO + debugpy workflow
+lua/java/                   -- Java tooling (jdtls, Maven test runner)
+  init.lua                  --   setup() + :Java* commands + :JavaHealth
+  jdtls.lua                 --   jdtls launcher, reactor-root detection, DAP wiring
+  maven.lua                 --   run tests from the editor, honest pass/fail reporting
+after/ftplugin/java.lua     -- starts jdtls per Java buffer
 lua/godot/                  -- Godot tooling, only active inside a project.godot tree
   init.lua                  --   setup() + :Godot* commands (no-op outside a project)
   detect.lua                --   project root / engine binary / port probes (dependency-free)
@@ -42,6 +47,24 @@ lua/godot/                  -- Godot tooling, only active inside a project.godot
 - **Format on save** via conform.nvim: black for Python (hardcoded pyenv 3.13.3 path to avoid timeout), prettier for JS/TS/JSON/YAML/MD.
 - **Theme**: tokyonight-night with 80+ custom Treesitter highlight overrides for maximum color differentiation.
 - **nvim-treesitter is pinned to `main`**, not `master`. The two branches share no API: `main` has no `nvim-treesitter.configs` and no `ensure_installed` / `auto_install` / `highlight` / `indent` / `incremental_selection` modules. In this config that means highlighting is Neovim's own `vim.treesitter.start()`, indentation is `indentexpr`, parser installation goes through `lua/treesitter_parsers.lua`, auto-install is the `FileType` autocmd in `lua/plugins/treesitter.lua`, and incremental selection is reimplemented in `lua/treesitter_select.lua`. Never reach for `configs.setup()` or `:TSBufEnable` here — neither exists.
+- **Java uses nvim-jdtls, not `vim.lsp.config`.** jdtls needs a per-project `-data`
+  workspace on the command line, Eclipse bundles for debug/test, and extended client
+  capabilities the generic client cannot express, so it is started from
+  `after/ftplugin/java.lua` rather than `vim.lsp.enable()`. Two things to know before
+  touching `lua/java/jdtls.lua`:
+  - **Never gate a Java keymap on `client.server_capabilities`.** jdtls announces
+    definition, codeAction, formatting, rename and hover through *dynamic registration*
+    after `initialize`, so those fields still read `nil` while the features work. A
+    capability guard there silently never binds.
+  - **Root detection walks to the OUTERMOST pom.xml**, not the nearest. `vim.fs.root`
+    stops at a submodule's own pom and would cost you the parent pom, dependency
+    management and every sibling module.
+- **Java tests run through `lua/java/maven.lua`, and it parses Surefire's summary rather
+  than trusting the exit code.** Verified behaviour: when a `-Dtest` filter matches
+  nothing, Maven prints `Tests run: 0` and exits **0** — with or without
+  `-DfailIfNoTests=false`. A typo'd method name would otherwise look exactly like a pass.
+  Relatedly, `-Dtest=Class#method` does not match a method inside a `@Nested` class; the
+  runner uses `Class*#method`, which matches both.
 - **Godot tooling is conditional**: everything under `lua/godot/` is gated on `require("godot.detect").is_project()`, which walks upward from the cwd looking for `project.godot`. Outside a Godot project no commands, keymaps, autocmds, LSP clients, DAP configs, or parsers are registered.
 
 ## Plugin Ecosystem
@@ -52,10 +75,10 @@ lua/godot/                  -- Godot tooling, only active inside a project.godot
 | UI | tokyonight, lualine, nvim-web-devicons, indent-blankline, rainbow-delimiters, nvim-colorizer, todo-comments, illuminate |
 | Navigation | nvim-tree, telescope, harpoon v2, popnav |
 | Git | gitsigns, neogit (vsplit sidebar), diffview |
-| LSP | Native Neovim LSP, mason (auto-installs pyright, ts_ls, lua_ls, yamlls, debugpy) |
+| LSP | Native Neovim LSP, mason (auto-installs pyright, ts_ls, lua_ls, yamlls, debugpy, jdtls) |
 | Completion | nvim-cmp, copilot-cmp, LuaSnip, cmp-path, cmp-buffer |
-| Testing | neotest (pytest + jest adapters), AWS profile selector for test env |
-| Debugging | nvim-dap, dap-ui, dap-python, custom FastAPI+debugpy launcher |
+| Testing | neotest (pytest + jest + java adapters), AWS profile selector for test env |
+| Debugging | nvim-dap, dap-ui, dap-python, java-debug-adapter, custom FastAPI+debugpy launcher |
 | Misc | conform (formatting), zen-mode, undotree, trouble, treesitter-context, csv/csvview, markdown-preview |
 
 ## LSP Servers
@@ -64,6 +87,9 @@ lua/godot/                  -- Godot tooling, only active inside a project.godot
 - **ts_ls** — TypeScript/JavaScript
 - **lua_ls** — Lua (Neovim runtime aware)
 - **yamlls** — YAML
+- **jdtls** — Java, via nvim-jdtls (see `lua/java/jdtls.lua`). Pinned to Homebrew's
+  keg-only JDK 21 through `cmd_env`, because nvim is often launched from a shell that
+  never sourced `~/.zshrc` and Homebrew's `maven` pulls in an unversioned `openjdk`.
 - **gdscript** — GDScript, via a TCP socket to the Godot editor's built-in server (`127.0.0.1:6005`); nothing to install, but the editor must have the project open. `lua/lsp.lua` returns `{ capabilities, on_attach, mason_cmd }` so `lua/godot/lsp.lua` reuses the same client setup.
 
 ## Important Keymap Prefixes
@@ -79,6 +105,8 @@ lua/godot/                  -- Godot tooling, only active inside a project.godot
 | `<leader>p` | Popnav |
 | `<leader>t` | Toggles (auto-save, treesitter, highlighting) |
 | `<leader>s` | SSH remote |
+| `<leader>c` | Code actions (Java, buffer-local: organize imports, generate, extract) |
+| `<leader>r` | Run (Java tests, buffer-local) + `<leader>rn` rename, `<leader>rp` |
 | `<leader>G` | Godot (project-gated) |
 
 ## Custom Modules (not plugins)

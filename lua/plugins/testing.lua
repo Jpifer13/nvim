@@ -8,6 +8,7 @@ return {
       -- Test adapters
       "nvim-neotest/neotest-python",
       "nvim-neotest/neotest-jest",
+      "rcasia/neotest-java",
     },
     keys = {
       { "<leader>ae", function()
@@ -56,27 +57,38 @@ return {
       { "]n", function() require("neotest").jump.next({ status = "failed" }) end, desc = "Test: Next failed" },
     },
     config = function()
+      local adapters = {
+        require("neotest-python")({
+          dap = { justMyCode = false },
+          runner = "pytest",
+          python = function()
+            -- Use venv python if available
+            local venv = vim.fn.getcwd() .. "/.venv/bin/python"
+            if vim.fn.filereadable(venv) == 1 then
+              return venv
+            end
+            return "python3"
+          end,
+        }),
+        require("neotest-jest")({
+          jestCommand = "npx jest",
+          cwd = function()
+            return vim.fn.getcwd()
+          end,
+        }),
+      }
+
+      -- neotest-java is optional. It shells out to Maven/Gradle and fetches a
+      -- JUnit platform launcher on first use, so a failure here must not take
+      -- the Python and TypeScript adapters down with it. When it is missing,
+      -- use the :JavaTest* commands / <leader>r* keymaps from lua/java/maven.lua.
+      local java_ok, neotest_java = pcall(require, "neotest-java")
+      if java_ok then
+        table.insert(adapters, neotest_java({}))
+      end
+
       require("neotest").setup({
-        adapters = {
-          require("neotest-python")({
-            dap = { justMyCode = false },
-            runner = "pytest",
-            python = function()
-              -- Use venv python if available
-              local venv = vim.fn.getcwd() .. "/.venv/bin/python"
-              if vim.fn.filereadable(venv) == 1 then
-                return venv
-              end
-              return "python3"
-            end,
-          }),
-          require("neotest-jest")({
-            jestCommand = "npx jest",
-            cwd = function()
-              return vim.fn.getcwd()
-            end,
-          }),
-        },
+        adapters = adapters,
         summary = {
           mappings = {
             run = "r",
