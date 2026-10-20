@@ -14,6 +14,9 @@ lua/lsp.lua                 -- LSP setup using Neovim 0.11+ native API (not nvim
 lua/plugins/init.lua        -- lazy.nvim bootstrap + aggregates all plugin modules
 lua/plugins/*.lua           -- Plugin configs (one file per concern)
 lua/plugins/git/plugins.lua -- Git plugins (gitsigns, neogit, diffview)
+scripts/export-to-usb.sh    -- Pack config + plugins + LSP servers + parsers onto a drive
+scripts/usb-install.sh      -- Installer that ships with the bundle (@EXT@ is substituted)
+scripts/usb-README.md       -- Instructions that ship with the bundle
 lua/floating_terminal.lua   -- Persistent floating terminal (85%x80%, rounded border)
 lua/awsdash.lua             -- awsdash AWS TUI (~/dev/personal/awsdash) in its own persistent float (<leader>A)
 lua/cheatsheet.lua          -- Modal keybinding reference (<leader>?)
@@ -147,6 +150,27 @@ lua/godot/                  -- Godot tooling, only active inside a project.godot
   under `_solutions/`, `testdata/` or a dot-dir, and never deletes a directory. Same prefix
   (`<leader>'`) and same panel keys as JavaQuest; the two never attach in the same project.
 - **Godot tooling is conditional**: everything under `lua/godot/` is gated on `require("godot.detect").is_project()`, which walks upward from the cwd looking for `project.godot`. Outside a Godot project no commands, keymaps, autocmds, LSP clients, DAP configs, or parsers are registered.
+
+## Offline Export
+
+`scripts/export-to-usb.sh /Volumes/DRIVE` bundles this config for a machine that cannot
+reach this GitHub account: the config, `~/.local/share/nvim/lazy` (plugins),
+`mason` (LSP servers, debug adapters) and `site` (compiled treesitter parsers).
+Verified end to end by installing into a sandbox `HOME`: 49 plugins, none pending.
+
+- **It ships tar archives, not loose files, and that is the point.** Thumbdrives are
+  usually exFAT/FAT32, which store neither the executable bit nor symlinks —
+  `mason/bin/*` are symlinks into `mason/packages/*`, so a plain copy arrives broken.
+- **The other `~/.local/share/nvim` directories are deliberately left out**: `avante`
+  (AI chat history), `telescope_history`, `harpoon`, `javaquest`/`goquest` progress.
+  They are this machine's state, and some of it is private.
+- **`usb-install.sh` removes the `origin` remote** after unpacking (history is kept), so
+  an absent-minded `git push` on a work machine cannot reach a personal account.
+- **Mason binaries and `.so` parsers are native code.** The bundle records
+  `uname -ms` and the Neovim version in `MANIFEST.txt`, and the installer warns when the
+  target differs — parsers are tied to Neovim's parser ABI.
+- The installer also checks the two paths this config hardcodes (pyenv 3.13.3 `black`,
+  Homebrew `openjdk@21`), since neither travels with the bundle.
 
 ## Plugin Ecosystem
 
