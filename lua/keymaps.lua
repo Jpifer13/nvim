@@ -95,6 +95,12 @@ vim.keymap.set("n", "<leader>A", function()
   require("awsdash").toggle()
 end, { desc = "Toggle awsdash (AWS TUI)" })
 
+-- Hiding keeps the process, so a new awsdash build only takes effect on a fresh one.
+-- No keymap: <leader>A is a standalone map and must not become a prefix.
+vim.api.nvim_create_user_command("AwsdashRestart", function()
+  require("awsdash").restart()
+end, { desc = "Restart awsdash (pick up a new version)" })
+
 ---------------------------------------------------------------
 -- Buffer tab navigation (falls through to window at edges)
 ---------------------------------------------------------------

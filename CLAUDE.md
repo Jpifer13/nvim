@@ -227,7 +227,18 @@ Verified end to end by installing into a sandbox `HOME`: 49 plugins, none pendin
   float closes, `M.adopt()` reads `~/.cache/awsdash/session.json` (which awsdash writes whenever its
   session window switches environment) and pushes `AWS_PROFILE` into this Neovim process through
   `env-manager.set`, so terminals, test runners and debug sessions started afterwards use the same
-  account. Two deliberate limits:
+  account. `:AwsdashRestart` quits the running one and opens a fresh float, which is how a
+  rebuilt awsdash is picked up -- hiding keeps the process, and a process keeps the code it
+  started with. There is no keymap for it on purpose: `<leader>A` is a standalone map and must
+  not become a prefix. Two things that are easy to get wrong here:
+  - **`vim.cmd("startinsert")` must be scheduled.** Run inline it does nothing from a command
+    line, or before `termopen` has turned the buffer into a terminal, and the float then sits
+    in NORMAL mode: every key meant for the TUI is a Vim motion instead, and `m` silently sets
+    a mark. Verified by driving nvim in a pty.
+  - **`on_exit` must check that the buffer it closes is still the current one.** The callback
+    is scheduled, so after a restart it arrives once the replacement float is already open and
+    would close it and delete its buffer.
+  Two deliberate limits:
   - **`AWS_REGION` is set only when awsdash's region differs from the profile's own.** An env var
     beats a profile's configured region, so pinning one here would silently override the region of
     whatever profile is chosen next; when an override is dropped the previous value is restored.

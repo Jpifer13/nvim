@@ -68,6 +68,19 @@ local function valid_win()
   return win and vim.api.nvim_win_is_valid(win)
 end
 
+-- `:startinsert` does nothing when it runs from a command line or before termopen has
+-- turned the buffer into a terminal -- the float then sits in normal mode, where keys
+-- meant for awsdash are Vim motions and `m` silently sets a mark. Scheduling it runs it
+-- after the current command finishes, which is the only reliable moment.
+local function enter_terminal()
+  vim.schedule(function()
+    if valid_win() then
+      vim.api.nvim_set_current_win(win)
+      vim.cmd("startinsert")
+    end
+  end)
+end
+
 local function open_win()
   local width = math.floor(vim.o.columns * 0.9)
   local height = math.floor(vim.o.lines * 0.85)
@@ -82,7 +95,7 @@ local function open_win()
     title = " awsdash ",
     title_pos = "center",
   })
-  vim.cmd("startinsert")
+  enter_terminal()
 end
 
 function M.hide()
@@ -91,6 +104,19 @@ function M.hide()
     win = nil
   end
   M.adopt()
+end
+
+--- Quit the running awsdash and open a fresh one.
+--- Hiding the float keeps the process alive (and the view you had drilled to), which
+--- also means it keeps the code it started with -- so after updating awsdash, this is
+--- what picks the new version up.
+function M.restart()
+  M.hide()
+  if valid_buf() then
+    vim.api.nvim_buf_delete(buf, { force = true }) -- takes the job with it
+    buf = nil
+  end
+  M.toggle()
 end
 
 function M.toggle()
@@ -109,17 +135,26 @@ function M.toggle()
   buf = vim.api.nvim_create_buf(false, true)
   open_win()
   opened_at = os.time()
-  vim.fn.termopen({ "awsdash" }, {
+  local this_buf = buf
+  local job = vim.fn.termopen({ "awsdash" }, {
     on_exit = function()
       vim.schedule(function()
+        -- Only tear down if this is still the current awsdash: M.restart kills the old
+        -- job and opens a new float straight away, and this callback arrives after it.
+        if buf ~= this_buf then
+          return
+        end
         M.hide()
-        if valid_buf() then
-          vim.api.nvim_buf_delete(buf, { force = true })
+        if vim.api.nvim_buf_is_valid(this_buf) then
+          vim.api.nvim_buf_delete(this_buf, { force = true })
         end
         buf = nil
       end)
     end,
   })
+  if job > 0 then
+    enter_terminal() -- again: the buffer only became a terminal just now
+  end
   -- nowait: the global terminal-mode <leader>AT (hide Claude) would otherwise make
   -- this wait timeoutlen.
   vim.keymap.set("t", "<leader>A", M.hide, { buffer = buf, nowait = true, desc = "Hide awsdash" })
