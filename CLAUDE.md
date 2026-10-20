@@ -38,6 +38,10 @@ lua/go/                     -- Go tooling (gopls is in lua/lsp.lua; delve via nv
   init.lua                  --   setup() + :Go* commands + :GoHealth + buffer-local keymaps
   runner.lua                --   run tests from the editor: ./quest in a course repo, go test elsewhere
 after/ftplugin/go.lua       -- real tabs, then require("go").attach(buf)
+lua/goquest/                -- javaquest's sibling for a Go course repo (gated on .goquest.json)
+  init.lua / detect.lua / state.lua / game.lua / ui.lua   -- same shape as javaquest
+  progress.lua              --   derives progress from .quest/reports/*.json, not Surefire
+  reset.lua                 --   per-FILE restore (Go tests live next to the code)
 lua/godot/                  -- Godot tooling, only active inside a project.godot tree
   init.lua                  --   setup() + :Godot* commands (no-op outside a project)
   detect.lua                --   project root / engine binary / port probes (dependency-free)
@@ -133,6 +137,14 @@ lua/godot/                  -- Godot tooling, only active inside a project.godot
   right the test split is narrow enough to break quest's `RESULT` line in two (verified).
   `maven.lua` parses Surefire's summary from its terminal the same way and could in principle
   hit the same wrap on a narrow screen.
+- **GoQuest is javaquest's sibling, not a shared engine.** `lua/goquest/` was derived from
+  `lua/javaquest/` and keeps the same shape (detect/state/game/ui/init) so a fix in one ports to
+  the other; only `progress.lua` (reads `<root>/.quest/reports/<module>/<test file>.json`, leaf
+  tests only, written by the course's `internal/quest` runner) and `reset.lua` really differ.
+  Reset differs because Go keeps `*_test.go` next to the code: it restores exercise files ONE
+  BY ONE from the `goquest-pristine` tag, where an exercise file is any non-test `.go` file not
+  under `_solutions/`, `testdata/` or a dot-dir, and never deletes a directory. Same prefix
+  (`<leader>'`) and same panel keys as JavaQuest; the two never attach in the same project.
 - **Godot tooling is conditional**: everything under `lua/godot/` is gated on `require("godot.detect").is_project()`, which walks upward from the cwd looking for `project.godot`. Outside a Godot project no commands, keymaps, autocmds, LSP clients, DAP configs, or parsers are registered.
 
 ## Plugin Ecosystem
@@ -176,7 +188,7 @@ lua/godot/                  -- Godot tooling, only active inside a project.godot
 | `<leader>t` | Toggles (auto-save, treesitter, highlighting) |
 | `<leader>s` | SSH remote |
 | `<leader>c` | Code actions (Java, buffer-local: organize imports, generate, extract) |
-| `<leader>'` | JavaQuest panel (buffer-local, only in a `.javaquest.json` project) |
+| `<leader>'` | JavaQuest / GoQuest panel (buffer-local, only in a `.javaquest.json` / `.goquest.json` project) |
 | `<leader>r` | Run (Java and Go tests, buffer-local) + `<leader>rn` rename, `<leader>rp` |
 | `<leader>G` | Godot (project-gated) |
 
@@ -194,6 +206,8 @@ lua/godot/                  -- Godot tooling, only active inside a project.godot
   failing test names, and trophies. `lua/java/maven.lua` calls
   `require("javaquest").on_test_run{...}` after every run so the panel updates itself. Entirely
   optional and entirely gated on `.javaquest.json`.
+- **goquest** — the same panel for a Go course repo, fed by `lua/go/runner.lua` calling
+  `require("goquest").on_test_run{...}`. Gated on `.goquest.json`.
 - **godot** — Godot 4 support layered on the existing LSP/DAP/treesitter/conform infrastructure rather than a plugin. Adds only the Godot-specific pieces: socket LSP, debug adapter, parsers, `:GodotRun`/`:GodotRunScene` with a streamed console, a static `.tscn` scene-tree inspector, and `:GodotHealth`. Debugging reuses the standard `<leader>d*` keymaps.
 
 ## When Editing This Config
