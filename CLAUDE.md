@@ -34,6 +34,10 @@ lua/javaquest/              -- progress panel for a TDD course repo (gated on .j
   game.lua                  --   XP, levels, achievements, progress bars
   ui.lua                    --   the right-hand sidebar, rendered like cheatsheet.lua
   reset.lua                 --   the only destructive code: restore stubs from a git tag
+lua/go/                     -- Go tooling (gopls is in lua/lsp.lua; delve via nvim-dap-go)
+  init.lua                  --   setup() + :Go* commands + :GoHealth + buffer-local keymaps
+  runner.lua                --   run tests from the editor: ./quest in a course repo, go test elsewhere
+after/ftplugin/go.lua       -- real tabs, then require("go").attach(buf)
 lua/godot/                  -- Godot tooling, only active inside a project.godot tree
   init.lua                  --   setup() + :Godot* commands (no-op outside a project)
   detect.lua                --   project root / engine binary / port probes (dependency-free)
@@ -117,6 +121,18 @@ lua/godot/                  -- Godot tooling, only active inside a project.godot
   when it is the last one) — so the panel now uses `<leader>'` as a PURE prefix, configurable via
   `keys.prefix` in `.javaquest.json`, and `lua/javaquest/init.lua` warns at startup if the chosen
   prefix is already a complete mapping.
+- **Go uses plain gopls through `vim.lsp.config`** in `lua/lsp.lua` (no launcher needed, unlike
+  jdtls), with Mason's binary via `mason_cmd`. Root markers put `go.work` before `go.mod`.
+  Formatting is conform's `goimports` with `gofmt` as `stop_after_first` fallback; Go buffers
+  get real tabs from `after/ftplugin/go.lua`. Debugging is nvim-dap-go with Mason's `dlv`.
+- **Go tests run through `lua/go/runner.lua`**, the counterpart of `maven.lua`, and it too reports
+  from evidence rather than the exit code: `go test -run Typo` exits 0 with `[no tests to run]`.
+  Inside a goquest repo it runs the repo's `./quest` wrapper (so runs are recorded) and reads the
+  totals from `.quest/last-run.json`, which it deletes before each run. It does NOT parse the
+  terminal for them: a terminal buffer hard-wraps at its width, and with the quest panel pinned
+  right the test split is narrow enough to break quest's `RESULT` line in two (verified).
+  `maven.lua` parses Surefire's summary from its terminal the same way and could in principle
+  hit the same wrap on a narrow screen.
 - **Godot tooling is conditional**: everything under `lua/godot/` is gated on `require("godot.detect").is_project()`, which walks upward from the cwd looking for `project.godot`. Outside a Godot project no commands, keymaps, autocmds, LSP clients, DAP configs, or parsers are registered.
 
 ## Plugin Ecosystem
@@ -127,10 +143,10 @@ lua/godot/                  -- Godot tooling, only active inside a project.godot
 | UI | tokyonight, lualine, nvim-web-devicons, indent-blankline, rainbow-delimiters, nvim-colorizer, todo-comments, illuminate |
 | Navigation | nvim-tree, telescope, harpoon v2, popnav |
 | Git | gitsigns, neogit (vsplit sidebar), diffview |
-| LSP | Native Neovim LSP, mason (auto-installs pyright, ts_ls, lua_ls, yamlls, debugpy, jdtls) |
+| LSP | Native Neovim LSP, mason (auto-installs pyright, ts_ls, lua_ls, yamlls, debugpy, jdtls, gopls, delve, goimports) |
 | Completion | nvim-cmp, copilot-cmp, LuaSnip, cmp-path, cmp-buffer |
-| Testing | neotest (pytest + jest + java adapters), AWS profile selector for test env |
-| Debugging | nvim-dap, dap-ui, dap-python, java-debug-adapter, custom FastAPI+debugpy launcher |
+| Testing | neotest (pytest + jest + java + golang adapters), AWS profile selector for test env |
+| Debugging | nvim-dap, dap-ui, dap-python, java-debug-adapter, nvim-dap-go (delve), custom FastAPI+debugpy launcher |
 | Misc | conform (formatting), zen-mode, undotree, trouble, treesitter-context, csv/csvview, markdown-preview |
 
 ## LSP Servers
@@ -142,6 +158,8 @@ lua/godot/                  -- Godot tooling, only active inside a project.godot
 - **jdtls** — Java, via nvim-jdtls (see `lua/java/jdtls.lua`). Pinned to Homebrew's
   keg-only JDK 21 through `cmd_env`, because nvim is often launched from a shell that
   never sourced `~/.zshrc` and Homebrew's `maven` pulls in an unversioned `openjdk`.
+- **gopls** — Go, via `vim.lsp.config` in `lua/lsp.lua`; staticcheck on, gofumpt off. `_solutions/`
+  in the Go course is invisible to it because the go tool ignores `_`-prefixed directories.
 - **gdscript** — GDScript, via a TCP socket to the Godot editor's built-in server (`127.0.0.1:6005`); nothing to install, but the editor must have the project open. `lua/lsp.lua` returns `{ capabilities, on_attach, mason_cmd }` so `lua/godot/lsp.lua` reuses the same client setup.
 
 ## Important Keymap Prefixes
@@ -159,7 +177,7 @@ lua/godot/                  -- Godot tooling, only active inside a project.godot
 | `<leader>s` | SSH remote |
 | `<leader>c` | Code actions (Java, buffer-local: organize imports, generate, extract) |
 | `<leader>'` | JavaQuest panel (buffer-local, only in a `.javaquest.json` project) |
-| `<leader>r` | Run (Java tests, buffer-local) + `<leader>rn` rename, `<leader>rp` |
+| `<leader>r` | Run (Java and Go tests, buffer-local) + `<leader>rn` rename, `<leader>rp` |
 | `<leader>G` | Godot (project-gated) |
 
 ## Custom Modules (not plugins)
@@ -184,5 +202,8 @@ lua/godot/                  -- Godot tooling, only active inside a project.godot
 - Keymaps are centralized in `lua/keymaps.lua` (not scattered in plugin configs), except for plugin-specific buffer-local keymaps set in `on_attach` or `config` callbacks.
 - The cheatsheet (`lua/cheatsheet.lua`) is manually maintained — update it when adding/changing keybindings.
 - Mason auto-installs are listed in `lua/plugins/mason.lua`; add new LSP servers/tools there.
+- `lua/plugins/lsp.lua` (nvim-lspconfig) and `lua/lsp.lua` (native API) BOTH configure
+  pyright/ts_ls/lua_ls/yamlls and both set `gd`/`gr`/`K`/`<leader>ca`. The plugin one is
+  lazy-loaded on `BufReadPre`, so it runs last and wins. Pick one before adding a server.
 - Treesitter parsers are listed in `ENSURE_INSTALLED` at the top of `lua/plugins/treesitter.lua`; `:TSEnsure` installs any that are missing and `:TSStatus` reports the current buffer plus anything outstanding. Note `main` has no separate `jsonc` parser — the `jsonc` filetype maps to `json`.
 - Python tooling paths (black, debugpy, pyright) sometimes use hardcoded paths to specific pyenv or Mason installs to avoid PATH/timeout issues.

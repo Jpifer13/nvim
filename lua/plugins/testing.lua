@@ -9,6 +9,7 @@ return {
       "nvim-neotest/neotest-python",
       "nvim-neotest/neotest-jest",
       "rcasia/neotest-java",
+      "fredrikaverpil/neotest-golang",
     },
     keys = {
       { "<leader>ae", function()
@@ -85,6 +86,14 @@ return {
       local java_ok, neotest_java = pcall(require, "neotest-java")
       if java_ok then
         table.insert(adapters, neotest_java({}))
+      end
+
+      -- neotest-golang, optional for the same reason. In a goquest course repo
+      -- prefer <leader>rt / <leader>'t: neotest runs `go test` directly, so its
+      -- runs are not recorded as progress.
+      local go_ok, neotest_golang = pcall(require, "neotest-golang")
+      if go_ok then
+        table.insert(adapters, neotest_golang({}))
       end
 
       require("neotest").setup({

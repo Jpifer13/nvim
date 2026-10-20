@@ -27,6 +27,11 @@ return {
         "jdtls",
         "java-debug-adapter",
         "java-test",
+        -- Go. gopls is enabled in lua/lsp.lua; delve backs nvim-dap-go
+        -- (lua/plugins/go.lua); goimports is the conform formatter.
+        "gopls",
+        "delve",
+        "goimports",
       }
       
       for _, server in ipairs(servers) do

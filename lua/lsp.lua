@@ -168,8 +168,27 @@ vim.lsp.config("yamlls", {
   on_attach = on_attach,
 })
 
+vim.lsp.config("gopls", {
+  cmd = mason_cmd("gopls"),
+  filetypes = { "go", "gomod", "gowork", "gotmpl" },
+  -- go.work first: in a workspace, the module's own go.mod is not the root.
+  root_markers = { "go.work", "go.mod", ".git" },
+  capabilities = capabilities,
+  on_attach = on_attach,
+  settings = {
+    gopls = {
+      staticcheck = true,
+      gofumpt = false, -- plain gofmt: what every Go codebase and reviewer expects
+      analyses = { unusedparams = true, unusedwrite = true, nilness = true, shadow = false },
+      hints = { parameterNames = true, assignVariableTypes = false, compositeLiteralFields = true },
+      -- Directories starting with "_" (the course's _solutions/) are already
+      -- invisible to the go tool and so to gopls; nothing to exclude by hand.
+    },
+  },
+})
+
 -- Enable servers (they'll start when you open a matching file)
-vim.lsp.enable({ "pyright", "ts_ls", "lua_ls", "yamlls" })
+vim.lsp.enable({ "pyright", "ts_ls", "lua_ls", "yamlls", "gopls" })
 
 -- Minimal built-in replacement for :LspInfo (since you're not using nvim-lspconfig)
 vim.api.nvim_create_user_command("LspInfo", function()

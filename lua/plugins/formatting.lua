@@ -11,6 +11,9 @@ return {
         json = { "prettier" },
         yaml = { "prettier" },
         markdown = { "prettier" },
+        -- goimports is gofmt plus import fixing; fall back to plain gofmt when
+        -- Mason has not installed it yet.
+        go = { "goimports", "gofmt", stop_after_first = true },
       }
 
       -- gdformat ships with gdtoolkit (pip install gdtoolkit). Only wire it up
