@@ -26,6 +26,14 @@ lua/java/                   -- Java tooling (jdtls, Maven test runner)
   jdtls.lua                 --   jdtls launcher, reactor-root detection, DAP wiring
   maven.lua                 --   run tests from the editor, honest pass/fail reporting
 after/ftplugin/java.lua     -- starts jdtls per Java buffer
+lua/javaquest/              -- progress panel for a TDD course repo (gated on .javaquest.json)
+  init.lua                  --   setup() + :JavaQuest* commands + the post-test-run hook
+  detect.lua                --   finds .javaquest.json upward; remembers the root
+  progress.lua              --   derives progress from Surefire XML reports
+  state.lua                 --   streak + trophy unlock history (NOT progress)
+  game.lua                  --   XP, levels, achievements, progress bars
+  ui.lua                    --   the right-hand sidebar, rendered like cheatsheet.lua
+  reset.lua                 --   the only destructive code: restore stubs from a git tag
 lua/godot/                  -- Godot tooling, only active inside a project.godot tree
   init.lua                  --   setup() + :Godot* commands (no-op outside a project)
   detect.lua                --   project root / engine binary / port probes (dependency-free)
@@ -65,6 +73,50 @@ lua/godot/                  -- Godot tooling, only active inside a project.godot
   `-DfailIfNoTests=false`. A typo'd method name would otherwise look exactly like a pass.
   Relatedly, `-Dtest=Class#method` does not match a method inside a `@Nested` class; the
   runner uses `Class*#method`, which matches both.
+- **JavaQuest is gated on a `.javaquest.json` at the project root**, the same way the Godot
+  module is gated on `project.godot`. No config file means no panel, no autocmds and no
+  keymaps, so it is inert in every other project. Three things to know before touching it:
+  - **Progress is DERIVED from `target/surefire-reports/TEST-*.xml`, never from a checklist**,
+    so the panel cannot claim work you have not done. XP and level are recomputed every
+    refresh, which is also why re-running an already-green test earns nothing.
+  - **Count `<testcase>` elements, not the `<testsuite tests="N">` attribute.** The attribute
+    reports `0` for a class whose tests live in `@Nested` inner classes while the file
+    contains all of them.
+  - **`mvn -Psolutions` used to overwrite those reports**, which marked modules complete when
+    nothing had been written. The parent pom now redirects solutions runs to
+    `target/surefire-reports-solutions` via a `surefire.reports.dir` property, and
+    `progress.lua` only ever reads the real directory. `state.lua` likewise ignores solutions
+    runs for the streak.
+- **`lua/javaquest/reset.lua` is the only destructive code in the config**, so it is written
+  defensively and should stay that way: it backs the current exercise files up to
+  `stdpath("data")/javaquest/backups/<ts>/` before touching anything, restores from the
+  `javaquest-pristine` git tag (refusing to run at all if the tag is missing), enumerates the
+  pristine file list with `git ls-tree` so it can delete files the user ADDED rather than issuing
+  a blind `rm -rf`, only ever writes under `<module>/src/main/java`, and never touches git
+  history. The full restart requires a typed word; the destructive commands are deliberately NOT
+  bound to any panel key.
+- **The JavaQuest panel is pinned to the far right.** It is created with
+  `botright vertical Nvsplit`, not `rightbelow vsplit` — the latter splits relative to the focused
+  window, so the panel landed mid-layout whenever it was opened from anything but the rightmost
+  window. A `JavaQuestLayout` augroup watches `WinNew`/`WinClosed`/`WinResized`/`VimResized`/
+  `TabEnter` and calls `ui.reposition()`, which uses `wincmd L` (move window to far right) and
+  re-asserts the width. `reposition` is guarded by a `repositioning` flag, since moving a window
+  fires the same events.
+- **JavaQuest's keymaps attach on `BufEnter` for every buffer in the project, not on
+  `FileType java`.** Scoping them to Java files meant the panel toggle silently did nothing on a
+  README, on `pom.xml`, in the file tree, on the unnamed startup buffer and inside the panel
+  itself. Note the two detection helpers in `detect.lua` and why both exist: `root_of_path` judges
+  a named file on its OWN location only (consulting the cwd there would attach the keymaps to an
+  unrelated file opened while the cwd happened to be the quest repo), while `find_root` may fall
+  back to the cwd and to a remembered root, which is what keeps the panel's own actions working
+  from inside its pathless scratch buffer.
+- **Never give a key both a standalone mapping and a prefix role.** Neovim then waits
+  `timeoutlen` on every press before firing the standalone one. The standalone `<leader>`+single
+  char maps in this config are `? e f j J k K q u w z`, so none of those may become a prefix.
+  JavaQuest originally used `<leader>qq`, which collided with `<leader>q` (close buffer, or `qa`
+  when it is the last one) — so the panel now uses `<leader>'` as a PURE prefix, configurable via
+  `keys.prefix` in `.javaquest.json`, and `lua/javaquest/init.lua` warns at startup if the chosen
+  prefix is already a complete mapping.
 - **Godot tooling is conditional**: everything under `lua/godot/` is gated on `require("godot.detect").is_project()`, which walks upward from the cwd looking for `project.godot`. Outside a Godot project no commands, keymaps, autocmds, LSP clients, DAP configs, or parsers are registered.
 
 ## Plugin Ecosystem
@@ -106,6 +158,7 @@ lua/godot/                  -- Godot tooling, only active inside a project.godot
 | `<leader>t` | Toggles (auto-save, treesitter, highlighting) |
 | `<leader>s` | SSH remote |
 | `<leader>c` | Code actions (Java, buffer-local: organize imports, generate, extract) |
+| `<leader>'` | JavaQuest panel (buffer-local, only in a `.javaquest.json` project) |
 | `<leader>r` | Run (Java tests, buffer-local) + `<leader>rn` rename, `<leader>rp` |
 | `<leader>G` | Godot (project-gated) |
 
@@ -118,6 +171,11 @@ lua/godot/                  -- Godot tooling, only active inside a project.godot
 - **treesitter_parsers** — Wraps `require("nvim-treesitter").install()` with the bookkeeping `main` doesn't provide: what's actually installed (Neovim bundles some parsers, which never appear in the install dir), what's available to build, and an in-flight guard. Used by both the treesitter config and the Godot module.
 - **treesitter_select** — Incremental selection on core `vim.treesitter`: `<CR>` selects the node under the cursor, `<CR>` in visual grows to the parent, `<Tab>` jumps to the enclosing scope, `<S-Tab>` shrinks. Falls back to the built-in `<CR>` in buffers with no parser.
 - **debug/fastapi_aws** — Orchestrates: pick AWS profile -> SSO login -> start uvicorn with debugpy -> auto-attach DAP.
+- **javaquest** — A gamified progress panel for a test-driven course repo: a right-hand sidebar
+  showing XP, level, a day streak, per-module progress bars, the next file to work on with its
+  failing test names, and trophies. `lua/java/maven.lua` calls
+  `require("javaquest").on_test_run{...}` after every run so the panel updates itself. Entirely
+  optional and entirely gated on `.javaquest.json`.
 - **godot** — Godot 4 support layered on the existing LSP/DAP/treesitter/conform infrastructure rather than a plugin. Adds only the Godot-specific pieces: socket LSP, debug adapter, parsers, `:GodotRun`/`:GodotRunScene` with a streamed console, a static `.tscn` scene-tree inspector, and `:GodotHealth`. Debugging reuses the standard `<leader>d*` keymaps.
 
 ## When Editing This Config

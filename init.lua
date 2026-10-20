@@ -5,4 +5,5 @@ require("plugins")
 require("lsp")
 require("env-manager").setup()
 require("java").setup() -- :Java* commands; jdtls starts from after/ftplugin/java.lua
+require("javaquest").setup() -- no-op unless a .javaquest.json is found above the file
 require("godot").setup() -- no-op outside a Godot project
