@@ -90,6 +90,11 @@ vim.keymap.set("t", "<leader>\\", function()
   require("floating_terminal").toggle()
 end, { desc = "Toggle Floating Terminal" })
 
+-- awsdash TUI in its own persistent float (<leader>A inside it hides it again)
+vim.keymap.set("n", "<leader>A", function()
+  require("awsdash").toggle()
+end, { desc = "Toggle awsdash (AWS TUI)" })
+
 ---------------------------------------------------------------
 -- Buffer tab navigation (falls through to window at edges)
 ---------------------------------------------------------------

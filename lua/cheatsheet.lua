@@ -144,6 +144,7 @@ local function lines()
     "",
     "  ┌─ 💻 TERMINAL ────────────────────────────────────────────────────────────────────────────────┐",
     "  │ <Space>\\   Toggle floating terminal (session persists when hidden)    Esc  Exit insert mode   │",
+    "  │ <Space>A    Toggle awsdash AWS TUI (session persists; <Space>A inside hides)                  │",
     "  └────────────────────────────────────────────────────────────────────────────────────────────────┘",
     "",
     "",

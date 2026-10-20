@@ -15,6 +15,7 @@ lua/plugins/init.lua        -- lazy.nvim bootstrap + aggregates all plugin modul
 lua/plugins/*.lua           -- Plugin configs (one file per concern)
 lua/plugins/git/plugins.lua -- Git plugins (gitsigns, neogit, diffview)
 lua/floating_terminal.lua   -- Persistent floating terminal (85%x80%, rounded border)
+lua/awsdash.lua             -- awsdash AWS TUI (~/dev/personal/awsdash) in its own persistent float (<leader>A)
 lua/cheatsheet.lua          -- Modal keybinding reference (<leader>?)
 lua/env-manager.lua         -- Auto-loads .env into process, floating editor (<leader>en)
 lua/markdown_preview.lua    -- In-terminal markdown renderer (not web-based)
@@ -120,7 +121,7 @@ lua/godot/                  -- Godot tooling, only active inside a project.godot
   from inside its pathless scratch buffer.
 - **Never give a key both a standalone mapping and a prefix role.** Neovim then waits
   `timeoutlen` on every press before firing the standalone one. The standalone `<leader>`+single
-  char maps in this config are `? e f j J k K q u w z`, so none of those may become a prefix.
+  char maps in this config are `? A e f j J k K q u w z`, so none of those may become a prefix.
   JavaQuest originally used `<leader>qq`, which collided with `<leader>q` (close buffer, or `qa`
   when it is the last one) — so the panel now uses `<leader>'` as a PURE prefix, configurable via
   `keys.prefix` in `.javaquest.json`, and `lua/javaquest/init.lua` warns at startup if the chosen
@@ -195,6 +196,10 @@ lua/godot/                  -- Godot tooling, only active inside a project.godot
 ## Custom Modules (not plugins)
 
 - **floating_terminal** — Reusable persistent floating terminal; used by popnav and Claude Code.
+- **awsdash** — Toggles the external `awsdash` TUI (pipx-installed from `~/dev/personal/awsdash`) in a
+  persistent float, inheriting env-manager's `AWS_PROFILE`. Hidden from inside with a buffer-local
+  `nowait` terminal-mode `<leader>A`; `nowait` is needed because the global terminal-mode `<leader>AT`
+  (hide Claude) would otherwise make it wait `timeoutlen`.
 - **env-manager** — Parses `.env` at startup, provides floating editor. All child processes (terminals, test runners, debuggers) inherit the vars.
 - **cheatsheet** — Full keybinding reference rendered as a styled modal. Update this when adding keymaps.
 - **markdown_preview** — Pure-Lua markdown renderer in a floating window with syntax highlighting.
